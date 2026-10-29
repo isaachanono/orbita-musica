@@ -54,14 +54,16 @@ const Spotify = (() => {
     if (!r.ok) { let m = r.status; try { m = (await r.json()).error?.message || m; } catch {} throw new Error('Spotify: ' + m); }
     return r.status === 204 ? null : r.json();
   }
-  const clean = s => String(s || '').replace(/\s*[([].*?[)\]]/g, '').replace(/\s+-\s+.*$/, '').replace(/"/g, '').trim();
+  const clean = s => String(s || '').replace(/\s*[([].*?[)\]]/g, '').replace(/"/g, '').trim();
+  const VERSION = /\s+-\s+[^-]*\b(remaster(ed)?|version|versi[oó]n|live|en vivo|edit|mix|mono|stereo|acoustic|ac[uú]stic[oa]|demo|single|radio)\b[^-]*$/i;
+  const base = s => clean(s).replace(VERSION, '');
   const nk = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\p{L}\p{N}]+/gu, '');
   async function findUri(t) {
-    const title = clean(t.title), artist = clean(t.artist);
+    const title = base(t.title), artist = clean(t.artist);
     for (const q of [`track:${title} artist:${artist}`, `${artist} ${title}`]) {
       const items = (await api('/search?' + new URLSearchParams({ q, type: 'track', limit: 5 }))).tracks?.items || [];
       const byArtist = items.filter(x => x.artists.some(a => nk(a.name) === nk(artist)));
-      const hit = byArtist.find(x => nk(clean(x.name)) === nk(title)) || byArtist.find(x => nk(x.name).startsWith(nk(title)));
+      const hit = byArtist.find(x => nk(base(x.name)) === nk(title)) || byArtist.find(x => nk(x.name).startsWith(nk(title)));
       if (hit) return hit.uri;
     }
     return null;
