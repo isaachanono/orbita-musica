@@ -1,6 +1,5 @@
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
-const API = 'https://api.deezer.com';
 const store = {
   get: (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
   set: (k, v) => localStorage.setItem(k, JSON.stringify(v)),
@@ -41,28 +40,6 @@ function markKnownTrack(artist, title) {
 const isKnownArtist = a => a && (knownIds.has(String(a.id)) || !!db.artists[K(a.name)]);
 const tasteList = () => Object.values(db.artists).sort((a, b) => b.n - a.n);
 
-/* ---------- Deezer (JSONP: no CORS, no key) ---------- */
-let cbId = 0;
-function dz(path, params = {}) {
-  return new Promise((resolve, reject) => {
-    const name = '__dz' + (++cbId);
-    const qs = new URLSearchParams({ ...params, output: 'jsonp', callback: name });
-    const s = document.createElement('script');
-    const timer = setTimeout(() => { cleanup(); reject(new Error('timeout')); }, 12000);
-    function cleanup() { clearTimeout(timer); delete window[name]; s.remove(); }
-    window[name] = data => { cleanup(); data && data.error ? reject(new Error(data.error.message || 'deezer')) : resolve(data); };
-    s.onerror = () => { cleanup(); reject(new Error('network')); };
-    s.src = `${API}${path}?${qs}`;
-    document.head.appendChild(s);
-  });
-}
-async function pool(items, n, fn) {
-  const out = []; let i = 0;
-  await Promise.all(Array.from({ length: Math.min(n, items.length) }, async () => {
-    while (i < items.length) { const k = i++; try { out[k] = await fn(items[k]); } catch { out[k] = null; } }
-  }));
-  return out;
-}
 async function resolveArtistId(entry) {
   if (entry.id) return entry.id;
   const r = await dz('/search/artist', { q: entry.name, limit: 1 });
@@ -107,10 +84,29 @@ async function fromScenes(scenes, intent) {
   return res.filter(Boolean).flat();
 }
 
+const shazamArtists = () => { const ids = new Set(db.sources.filter(x => x.shazam).map(x => x.id)); return tasteList().filter(e => e.srcs.some(x => ids.has(x))); };
+
+// Similar artists from open libraries: ListenBrainz (listening sessions) and Last.fm (only via the gateway node).
+async function fromLibs(s) {
+  const seeds = s.intent.artists.length ? s.intent.artists.slice(0, 2)
+    : s.useTaste ? shuffle((s.intent.shazam ? shazamArtists() : tasteList()).slice(0, 20)).slice(0, 2).map(e => e.name) : [];
+  const res = await pool(seeds, 2, async seed => {
+    const names = new Map();
+    const mb = await MB.artist(seed).catch(() => null);
+    if (mb?.mbid) (await lbSimilar(mb.mbid).catch(() => [])).forEach(n => names.set(K(n), { n, src: 'ListenBrainz' }));
+    (await lfmSimilar(seed).catch(() => [])).forEach(n => { if (!names.has(K(n))) names.set(K(n), { n, src: 'Last.fm' }); });
+    const pick = shuffle([...names.values()].slice(s.novelty >= 60 ? 5 : 0)).filter(x => !db.artists[K(x.n)] && !s.exclude.has(K(x.n)) && K(x.n) !== K(seed)).slice(0, 8);
+    const found = await pool(pick, 4, async x => { const a = (await dz('/search/artist', { q: x.n, limit: 1 })).data?.[0]; return a && K(a.name) === K(x.n) ? { a, src: x.src } : null; });
+    return found.filter(Boolean).map(({ a, src }) => ({ artist: a, why: `${src === 'Last.fm' ? 'Similar a' : 'Se escucha junto a'} ${seed} · ${src}`, hop: 1, scene: 'lib:' + seed, taste: !s.intent.artists.length }));
+  });
+  return res.filter(Boolean).flat();
+}
+
 // Taste: related artists of what you already listen to (imported playlists + likes).
 async function fromTaste(s) {
-  const top = tasteList().slice(0, 40);
+  const top = (s.intent.shazam ? shazamArtists() : tasteList()).slice(0, 40);
   if (!top.length) return [];
+  const verb = s.intent.shazam ? 'Porque shazameaste' : 'Porque escuchas';
   const picks = [];
   const bag = top.flatMap(e => Array(Math.min(6, Math.ceil(e.n))).fill(e));
   while (picks.length < Math.min(4, top.length) && bag.length) {
@@ -121,7 +117,7 @@ async function fromTaste(s) {
     const id = await resolveArtistId(e); if (!id || id < 0) return [];
     const rel = (await dz(`/artist/${id}/related`, { limit: 20 })).data || [];
     rel.forEach(a => { if (!s.tasteNear.has(a.id)) s.tasteNear.set(a.id, e.name); });
-    let out = rel.map(a => ({ artist: a, why: `Porque escuchas ${e.name}`, hop: 1, taste: true }));
+    let out = rel.map(a => ({ artist: a, why: `${verb} ${e.name}`, hop: 1, taste: true }));
     if (s.novelty >= 60 && rel.length) {
       const v = shuffle(rel)[0];
       const far = (await dz(`/artist/${v.id}/related`, { limit: 15 })).data || [];
@@ -163,7 +159,7 @@ async function enArtists(genre) {
   if (cache[genre]) return cache[genre];
   const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 9000);
   try {
-    const r = await fetch('https://r.jina.ai/https://everynoise.com/engenremap-' + enSlug(genre) + '.html', { signal: ctl.signal });
+    const r = await fetch(readerUrl('https://everynoise.com/engenremap-' + enSlug(genre) + '.html'), { signal: ctl.signal });
     if (!r.ok) throw new Error('everynoise ' + r.status);
     const names = [...(await r.text()).matchAll(/^(.+?)\[»\]\(https:\/\/everynoise\.com\/artistprofile/gm)].map(m => m[1].trim()).filter(Boolean);
     const keys = Object.keys(cache); if (keys.length > 30) delete cache[keys[0]];
@@ -237,13 +233,14 @@ async function gather(s) {
   const scenes = pickScenes(s.intent, s.novelty);
   if (!s.scenes.length) s.scenes = scenes;
   if (s.intent.deep.length || s.intent.deepTaste) return fromDeep(s).catch(() => []);
-  const [ac, sc, tc, ec] = await Promise.all([
+  const [ac, sc, tc, ec, lc] = await Promise.all([
     s.intent.artists.length ? fromArtists(s.intent.artists, s.novelty, s).catch(() => []) : [],
     scenes.length ? fromScenes(scenes, s.intent).catch(() => []) : [],
     s.useTaste ? fromTaste(s).catch(() => []) : [],
     scenes.length ? fromEveryNoise(scenes, s).catch(() => []) : [],
+    fromLibs(s).catch(() => []),
   ]);
-  return [...ac, ...sc, ...tc, ...ec];
+  return [...ac, ...sc, ...tc, ...ec, ...lc];
 }
 function refill(s) {
   if (s.lock) return s.lock;
@@ -364,7 +361,7 @@ function tile(it, fmt) {
   const el = document.createElement('article');
   el.className = `tile ${fmt}`; el.dataset.tid = t.id;
   el.innerHTML = `<div class="art" style="background-image:url('${cssUrl(cover)}')"><button class="pbtn" title="Preview 30 s">${icon('play')}</button></div>
-  <div class="meta"><div class="t-title" title="${esc(title)}">${esc(title)}</div><div class="t-sub">${sub}</div><div class="why">${esc(it.why)}</div>
+  <div class="meta"><div class="t-title" title="${esc(title)}">${esc(title)}</div><div class="t-sub">${sub}</div><div class="why">${esc(it.why)}</div><div class="tags" data-artist="${esc(a.name)}"></div>
   <div class="t-acts">
     <button class="icon-btn" data-a="like" title="Guardar (te doy otra)">${icon('heart')}</button>
     <button class="icon-btn" data-a="known" title="Ya la conozco (te doy otra)">${icon('known')}</button>
@@ -388,13 +385,25 @@ function tile(it, fmt) {
 }
 const currentTracks = () => $$('#results [data-tid]').map(el => el._track).filter(Boolean);
 
+const flag = cc => /^[A-Z]{2}$/.test(cc || '') ? String.fromCodePoint(...[...cc].map(c => 0x1f1a5 + c.charCodeAt(0))) : '';
+async function enrichTiles() {
+  for (const el of $$('#results .tags:not([data-done])')) {
+    el.dataset.done = '1';
+    const info = await MB.artist(el.dataset.artist).catch(() => null);
+    if (!info || !el.isConnected) continue;
+    el.innerHTML = [...info.genres.slice(0, 2).map(g => `<button type="button" class="tag" data-g="${esc(g)}" title="Buscar ${esc(g)}">${esc(g)}</button>`),
+      info.country ? `<span class="tag mut" title="${esc(info.area || info.country)}">${flag(info.country)} ${esc(info.country)}</span>` : '',
+      info.begin ? `<span class="tag mut">desde ${esc(info.begin)}</span>` : ''].join('');
+    el.querySelectorAll('[data-g]').forEach(b => b.onclick = () => deepSearch(b.dataset.g));
+  }
+}
 async function replaceTile(el) {
   const s = session; if (!s) return;
   el.classList.add('out');
   el.style.pointerEvents = 'none';
   const [nx] = await nextItems(s, 1);
   if (s !== session) return;
-  if (nx) { const n = tile(nx, s.fmt); el.replaceWith(n); syncPlaying(); }
+  if (nx) { const n = tile(nx, s.fmt); el.replaceWith(n); syncPlaying(); enrichTiles(); }
   else { el.remove(); toast('No encontré más opciones con ese prompt; prueba otro'); }
 }
 
@@ -418,7 +427,7 @@ function showIntent(s) {
     intent.deepTaste ? `<span class="chip g">canciones nuevas de tus artistas</span>` : '',
     ...s.scenes.map(x => `<span class="chip g">${esc(x.term)}${x.far ? ` <small>(vecina de ${esc(x.from)}${x.en ? ' en Every Noise' : ''})</small>` : ''}</span>`),
     intent.era ? `<span class="chip">${esc(intent.era)}</span>` : '', intent.region ? `<span class="chip">${esc(intent.region)}</span>` : '',
-    s.useTaste ? `<span class="chip g">${icon('user')} según tus gustos</span>` : '',
+    intent.shazam ? `<span class="chip g">desde tus Shazams</span>` : s.useTaste ? `<span class="chip g">${icon('user')} según tus gustos${intent.fromProfile ? ' y tus géneros' : ''}</span>` : '',
     `<span class="chip">→ ${fmtName}</span>`,
   ];
   $('#intent').innerHTML = chips.join(''); $('#intent').hidden = false;
@@ -429,15 +438,17 @@ async function discover() {
   const useTaste = $('#useTaste').checked && tasteList().length > 0;
   const intent = parseIntent(prompt);
   if (intent.deepTaste && !tasteList().length) { toast('Primero importa tus playlists en Mis gustos'); return; }
-  if (!prompt && !useTaste) { $('#prompt').focus(); toast(tasteList().length ? 'Escribe un prompt o activa “Usar mis gustos”' : 'Escribe un prompt (o importa tus playlists en Mis gustos)'); return; }
+  if (intent.shazam && !shazamArtists().length) { toast('Primero importa tus Shazams en Mis gustos'); location.hash = '#gustos'; return; }
+  if (!prompt && useTaste && db.prefs.genres?.length) { intent.genres = shuffle(db.prefs.genres.slice(0, 8).map(x => x.g)).slice(0, 2); intent.fromProfile = true; }
+  if (!prompt && !useTaste && !intent.shazam) { $('#prompt').focus(); toast(tasteList().length ? 'Escribe un prompt o activa “Usar mis gustos”' : 'Escribe un prompt (o importa tus playlists en Mis gustos)'); return; }
   const novelty = +$('#novelty').value;
   const chosen = document.querySelector('input[name=format]:checked').value;
   let fmt = chosen === 'auto' ? (intent.format || 'track') : chosen;
   const deep = intent.deep.length || intent.deepTaste;
   if (deep && fmt === 'artist') fmt = 'track';
-  if (prompt && !deep && !intent.genres.length && !intent.moods.length && !intent.artists.length && !intent.keywords.length) intent.keywords = [prompt];
+  if (prompt && !deep && !intent.shazam && !intent.genres.length && !intent.moods.length && !intent.artists.length && !intent.keywords.length) intent.keywords = [prompt];
   history.replaceState(null, '', '?' + new URLSearchParams({ q: prompt, f: chosen, n: novelty }) + '#descubrir');
-  const s = session = newSession({ intent, fmt, novelty, useTaste: useTaste && !deep });
+  const s = session = newSession({ intent, fmt, novelty, useTaste: (useTaste || intent.shazam) && !deep });
   const want = fmt === 'playlist' ? 25 : 9;
   $('#go').disabled = true; $('#actions').hidden = true; $('#legend').hidden = true; $('#intent').hidden = true;
   status('#status', deep ? 'Buscando canciones que no tienes registradas de esos artistas…' : useTaste ? 'Explorando escenas y artistas cercanos a lo que escuchas…' : 'Explorando escenas y artistas relacionados…');
@@ -452,10 +463,10 @@ async function discover() {
     if (fmt === 'playlist') { renderDraft(items.map(toTrack), prompt); return; }
     items.forEach(i => $('#results').appendChild(tile(i, fmt)));
     $('#legend').hidden = false; $('#actions').hidden = false;
-    syncPlaying();
+    syncPlaying(); enrichTiles();
   } catch (e) {
     console.error(e); $('#results').innerHTML = ''; status('#status', 'Algo falló consultando el catálogo (' + e.message + '). Intenta de nuevo.');
-  } finally { if (s === session) $('#go').disabled = false; }
+  } finally { if (s === session) { $('#go').disabled = false; renderExamples(); } }
 }
 
 /* playlist format: an editable draft you can save */
@@ -500,7 +511,7 @@ $('#again').onclick = async () => {
   if (s !== session) return;
   $('#results').innerHTML = '';
   if (!items.length) { status('#status', 'Ya no encontré más con ese prompt. Prueba otro o sube “qué tan nuevo”.'); return; }
-  items.forEach(i => $('#results').appendChild(tile(i, s.fmt))); syncPlaying();
+  items.forEach(i => $('#results').appendChild(tile(i, s.fmt))); syncPlaying(); enrichTiles();
   scrollTo({ top: $('#intent').offsetTop - 80, behavior: 'smooth' });
 };
 $('#toPlaylist').onclick = e => openMenu(e.currentTarget, currentTracks());
@@ -513,9 +524,14 @@ const nov = $('#novelty');
 const novLabel = () => $('#noveltyLabel').textContent = nov.value < 35 ? 'Cerca' : nov.value < 70 ? 'Medio' : 'Lejos';
 nov.oninput = novLabel;
 $('#useTaste').onchange = () => { db.prefs.useTaste = $('#useTaste').checked; persist(); };
-const EXAMPLES = ['canciones que no conozco de mis artistas', 'más de Natalia Lafourcade', 'algo melancólico con groove para manejar de noche', 'para estudiar sin letra pero que no sea lofi típico', 'fiesta en casa, cumbia y cosas raras', 'parecido a Natalia Lafourcade pero menos conocido', 'un álbum de jazz para el domingo en la mañana', 'playlist para el gym con energía', 'city pop japonés 80s', 'triste pero bonito, para un día de lluvia'];
-$('#examples').innerHTML = EXAMPLES.map(x => `<button type="button">${esc(x)}</button>`).join('');
-$('#examples').querySelectorAll('button').forEach(b => b.onclick = () => { $('#prompt').value = b.textContent; discover(); });
+function renderExamples() {
+  const fmt = document.querySelector('input[name=format]:checked').value;
+  const list = suggestPrompts(fmt, { artists: tasteList().slice(0, 30).map(e => e.name), genres: (db.prefs.genres || []).slice(0, 12).map(x => x.g), shazam: db.sources.some(x => x.shazam) });
+  $('#examples').innerHTML = list.map(x => `<button type="button">${esc(x)}</button>`).join('');
+  $('#examples').querySelectorAll('button').forEach(b => b.onclick = () => { $('#prompt').value = b.textContent; discover(); });
+  $('#prompt').placeholder = 'ej. ' + list[0];
+}
+$$('input[name=format]').forEach(r => r.addEventListener('change', renderExamples));
 
 /* ---------- track rows (playlists, saved, drafts) ---------- */
 function trackRow(t, i, list, acts) {
@@ -631,7 +647,7 @@ $('#savedPlayAll').onclick = () => db.liked[0] && playTrack(db.liked[0], db.like
 $('#savedToPl').onclick = () => { if (!db.liked.length) return toast('Aún no guardas nada'); const p = createPlaylist('Mis guardados'); addToPlaylist(p, db.liked); location.hash = '#playlist/' + p.id; };
 
 /* ---------- gustos ---------- */
-function registerImport(res, url) {
+function registerImport(res, url, extra = {}) {
   const id = uid();
   const keys = new Set(), tks = new Set();
   let n = 0;
@@ -639,7 +655,7 @@ function registerImport(res, url) {
     t.artists.forEach((a, j) => { const k = addArtist(a, { id: t.ids?.[j], src: id }); if (k) keys.add(k); });
     if (t.title && t.artists[0]) { const tk = TK(t.artists[0], t.title); knownTracks.add(tk); tks.add(tk); n++; }
   }
-  db.sources.unshift({ id, url, service: res.service, name: res.name, tracks: n, artists: keys.size, keys: [...tks], date: Date.now() });
+  db.sources.unshift({ id, url, service: res.service, name: res.name, tracks: n, artists: keys.size, keys: [...tks], date: Date.now(), ...extra });
   persist();
   return { n, a: keys.size };
 }
@@ -682,13 +698,83 @@ function removeSource(id) {
 function renderGustos() {
   const arts = tasteList();
   $('#stats').innerHTML = `<div class="stat"><b>${arts.length}</b><span>artistas que conoces</span></div><div class="stat"><b>${knownTracks.size}</b><span>canciones registradas</span></div><div class="stat"><b>${db.sources.length}</b><span>fuentes importadas</span></div><div class="stat"><b>${db.liked.length}</b><span>guardados</span></div>`;
-  $('#sources').innerHTML = db.sources.map(s => `<div class="src"><span class="badge">${esc(SERVICES[s.service] || s.service)}</span><div class="nm"><b>${safeHref(s.url) ? `<a href="${esc(s.url)}" target="_blank" rel="noopener" style="color:inherit">${esc(s.name)}</a>` : esc(s.name)}</b><span>${s.tracks} canciones · ${s.artists} artistas · ${new Date(s.date).toLocaleDateString()}</span></div><button class="icon-btn" data-src="${s.id}" title="Quitar esta fuente">${icon('x')}</button></div>`).join('') || '<p class="empty" style="padding:6px 0">Todavía no importas nada.</p>';
+  $('#sources').innerHTML = db.sources.map(s => `<div class="src"><span class="badge">${esc(s.shazam ? 'Shazam' : SERVICES[s.service] || s.service)}</span><div class="nm"><b>${safeHref(s.url) ? `<a href="${esc(s.url)}" target="_blank" rel="noopener" style="color:inherit">${esc(s.name)}</a>` : esc(s.name)}</b><span>${s.tracks} canciones · ${s.artists} artistas · ${new Date(s.date).toLocaleDateString()}</span></div>${safeHref(s.url) ? `<button class="icon-btn" data-re="${s.id}" title="Actualizar (volver a leer el link)">${icon('swap')}</button>` : ''}<button class="icon-btn" data-src="${s.id}" title="Quitar esta fuente">${icon('x')}</button></div>`).join('') || '<p class="empty" style="padding:6px 0">Todavía no importas nada.</p>';
   $$('#sources [data-src]').forEach(b => b.onclick = () => removeSource(b.dataset.src));
+  $$('#sources [data-re]').forEach(b => b.onclick = () => refreshSource(b.dataset.re, b));
+  renderGenres();
+  $('#shazamUrl').value = db.prefs.shazamUrl || '';
+  $('#shazamBtn').textContent = db.prefs.shazamUrl ? 'Actualizar mis Shazams' : 'Importar mis Shazams';
   $('#artistChips').innerHTML = arts.slice(0, 300).map(e => `<span class="chip n"><a href="#descubrir" data-deep="${esc(e.name)}" title="Canciones de ${esc(e.name)} que no conoces">${esc(e.name)}</a> <em>${Math.round(e.n)}</em><button data-k="${esc(K(e.name))}" title="Olvidar">${icon('x')}</button></span>`).join('') || '<p class="empty" style="padding:6px 0">Sin artistas todavía.</p>';
   $$('#artistChips [data-deep]').forEach(a => a.onclick = e => { e.preventDefault(); deepSearch('más de ' + a.dataset.deep); });
   renderSpotify();
   $$('#artistChips [data-k]').forEach(b => b.onclick = () => { const e = db.artists[b.dataset.k]; if (e?.id) knownIds.delete(String(e.id)); delete db.artists[b.dataset.k]; persist(); renderGustos(); });
 }
+async function refreshSource(id, btn) {
+  const src = db.sources.find(x => x.id === id); if (!src?.url) return;
+  if (src.shazam) return importShazam(src.url);
+  btn.disabled = true; toast('Actualizando «' + src.name + '»…');
+  try {
+    const res = await importLink(src.url);
+    if (!res.tracks.length) throw new Error('No encontré canciones en ese link.');
+    removeSource(id); const r = registerImport(res, src.url); renderGustos(); toast(`Actualizada: ${r.n} canciones`);
+  } catch (e) { btn.disabled = false; toast(e.message || 'No pude actualizarla'); }
+}
+
+/* Shazam: the app syncs identified songs to a "My Shazam Tracks" playlist in Spotify or Apple Music; we read that playlist. */
+async function importShazam(url) {
+  url = String(url || '').trim(); if (!url) { toast('Pega el link de tu playlist “My Shazam Tracks”'); return; }
+  status('#shazamStatus', 'Leyendo tus Shazams…'); $('#shazamBtn').disabled = true;
+  try {
+    const res = await importLink(url);
+    if (!['spotify', 'apple'].includes(res.service)) throw new Error('Usa el link de la playlist “My Shazam Tracks” de Spotify o Apple Music.');
+    if (!res.tracks.length) throw new Error('No encontré canciones en esa playlist (¿es pública?).');
+    db.sources.filter(x => x.shazam).forEach(x => removeSource(x.id));
+    const r = registerImport({ ...res, name: 'Mis Shazams · ' + SERVICES[res.service] }, url, { shazam: true });
+    db.prefs.shazamUrl = url; persist();
+    status('#shazamStatus', `Registré ${r.n} canciones shazameadas. Armando tu playlist…`);
+    const p = await buildShazamPlaylist(res.tracks.filter(t => t.title));
+    status('#shazamStatus', `Listo: ${r.n} Shazams de ${r.a} artistas y la playlist «${p.name}» con ${p.tracks.length} canciones.`);
+    renderGustos(); renderExamples();
+  } catch (e) { status('#shazamStatus', e.message || 'No pude leer tus Shazams'); }
+  finally { $('#shazamBtn').disabled = false; }
+}
+async function buildShazamPlaylist(list) {
+  const found = (await pool(list.slice(0, 60), 5, async t => {
+    const r = (await dz('/search', { q: `${t.artists[0]} ${t.title}`, limit: 5 })).data || [];
+    const x = r.find(y => K(y.artist?.name) === K(t.artists[0])) || r.find(y => t.artists.some(a => K(a) === K(y.artist?.name)));
+    return x ? toTrack({ track: x, artist: x.artist, why: 'Shazam' }) : null;
+  })).filter(Boolean);
+  let p = db.playlists.find(x => x.id === db.prefs.shazamPl);
+  if (!p) { p = createPlaylist('Mis Shazams'); db.prefs.shazamPl = p.id; }
+  p.tracks = []; addToPlaylist(p, found);
+  return p;
+}
+$('#shazamForm').onsubmit = e => { e.preventDefault(); importShazam($('#shazamUrl').value || db.prefs.shazamUrl); };
+$('#shazamDiscover').onclick = () => shazamArtists().length ? deepSearch('descubrir desde mis shazams') : toast('Primero importa tus Shazams');
+$('#shazamOpen').onclick = () => db.playlists.some(x => x.id === db.prefs.shazamPl) ? location.hash = '#playlist/' + db.prefs.shazamPl : toast('Primero importa tus Shazams');
+
+/* genres of your profile, classified with MusicBrainz tags that Every Noise recognises as genres */
+function renderGenres() {
+  const g = db.prefs.genres || [];
+  $('#genreChips').innerHTML = g.length ? g.slice(0, 30).map(x => `<button type="button" class="chip g" data-g="${esc(x.g)}">${esc(x.g)} <em>${x.n}</em></button>`).join('')
+    : '<p class="empty" style="padding:6px 0">Toca “Clasificar mis artistas” para ver tus géneros.</p>';
+  $$('#genreChips [data-g]').forEach(b => b.onclick = () => deepSearch(b.dataset.g));
+}
+$('#classify').onclick = async () => {
+  const top = tasteList().slice(0, 30); if (!top.length) { toast('Primero importa tus playlists'); return; }
+  const btn = $('#classify'); btn.disabled = true; const w = {}; let i = 0, ok = 0;
+  for (const e of top) {
+    $('#classifyStatus').textContent = `${++i}/${top.length} · ${e.name}`;
+    const info = await MB.artist(e.name).catch(() => null);
+    if (!info) continue;
+    ok++;
+    info.genres.forEach((g, j) => { w[g] = (w[g] || 0) + Math.min(6, e.n) * (1 - j * 0.15); });
+    const a = db.artists[K(e.name)]; if (a) { a.genres = info.genres; a.country = info.country; }
+  }
+  db.prefs.genres = Object.entries(w).sort((a, b) => b[1] - a[1]).map(([g, v]) => ({ g, n: Math.max(1, Math.round(v)) }));
+  persist(); btn.disabled = false; $('#classifyStatus').textContent = ''; renderGenres(); renderExamples();
+  toast(`Clasifiqué ${ok} de ${top.length} artistas en ${db.prefs.genres.length} géneros`);
+};
 function deepSearch(q) { $('#prompt').value = q; location.hash = '#descubrir'; discover(); }
 $('#deepTaste').onclick = () => deepSearch('canciones que no conozco de mis artistas');
 function download(name, text, type = 'application/json') {
@@ -733,7 +819,7 @@ const qp = new URLSearchParams(location.search);
 if (qp.get('n')) nov.value = qp.get('n');
 if (qp.get('f')) { const r = document.querySelector(`input[name=format][value="${qp.get('f')}"]`); if (r) r.checked = true; }
 $('#useTaste').checked = db.prefs.useTaste !== false;
-novLabel(); persist(); renderAll(); syncPlaying();
+novLabel(); persist(); renderAll(); syncPlaying(); renderExamples();
 if (qp.get('q') && (location.hash === '' || location.hash === '#descubrir')) { $('#prompt').value = qp.get('q'); discover(); }
 Spotify.handleRedirect().then(pid => {
   if (pid === null) return;

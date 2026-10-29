@@ -273,4 +273,12 @@ input[type=range]{accent-color:var(--acc);width:120px}
   .toast{bottom:160px}
 }
 
+.tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
+.tags:empty{display:none}
+.tag{font:500 11px "DM Sans",sans-serif;padding:2px 8px;border-radius:6px;background:var(--fill2);color:var(--txt);border:0;cursor:pointer}
+.tag:hover{background:var(--acc);color:var(--acc-ink)}
+.tag.mut{color:var(--mut);cursor:default}.tag.mut:hover{background:var(--fill2);color:var(--mut)}
+button.chip{cursor:pointer;font-family:inherit}
+button.chip em{font-style:normal;opacity:.7;font-size:11px}
+
 [hidden]{display:none!important}

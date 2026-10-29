@@ -86,7 +86,7 @@
       <button id="toPlaylist" type="button" class="btn">Guardar estas como playlist</button>
       <button id="copy" type="button" class="btn ghost">Copiar lista</button>
     </div>
-    <p class="credit">Géneros vecinos y artistas por escena: <a href="https://everynoise.com/" target="_blank" rel="noopener">Every Noise at Once</a> · catálogo y previews: Deezer</p>
+    <p class="credit">Fuentes: catálogo y previews de Deezer · géneros y escenas de <a href="https://everynoise.com/" target="_blank" rel="noopener">Every Noise at Once</a> · clasificación de <a href="https://musicbrainz.org/" target="_blank" rel="noopener">MusicBrainz</a> · artistas afines de <a href="https://listenbrainz.org/" target="_blank" rel="noopener">ListenBrainz</a></p>
   </section>
 
   <!-- MIS GUSTOS -->
@@ -111,7 +111,19 @@
         <button class="btn">Agregar</button>
       </form>
     </div>
+    <div class="panel" id="shazamPanel">
+      <h3>Shazam</h3>
+      <p class="hint">Shazam no tiene API pública, pero puede guardar todo lo que identificas en una playlist <b>“My Shazam Tracks”</b>. En la app de Shazam: Ajustes → <b>Conectar Spotify</b> (activa “Sync your songs to Spotify”) o <b>Apple Music</b>. Copia el link de esa playlist (en Apple Music compártela como pública) y pégalo aquí. Cuando shazamees más, toca “Actualizar”.</p>
+      <form id="shazamForm" class="row-form" style="margin-top:10px"><input id="shazamUrl" type="url" placeholder="Link de tu playlist “My Shazam Tracks” (Spotify o Apple Music)"><button class="btn primary" id="shazamBtn">Importar mis Shazams</button></form>
+      <div id="shazamStatus" class="status" hidden></div>
+      <div class="actions left"><button class="btn" id="shazamDiscover" type="button">Descubrir desde mis Shazams</button><button class="btn ghost" id="shazamOpen" type="button">Ver playlist Mis Shazams</button></div>
+    </div>
     <div class="stats" id="stats"></div>
+    <div class="panel" id="genrePanel">
+      <h3>Tus géneros <small class="mut">(clasificados con MusicBrainz + Every Noise; toca uno para explorarlo)</small></h3>
+      <div id="genreChips" class="chips"></div>
+      <div class="actions left"><button class="btn" id="classify" type="button">Clasificar mis artistas</button><span id="classifyStatus" class="mut"></span></div>
+    </div>
     <div class="panel"><h3>Fuentes importadas</h3><div id="sources" class="rows"></div></div>
     <div class="panel"><h3>Artistas que conoces <small class="mut">(toca uno para ver canciones suyas que no conoces)</small></h3>
       <div class="actions left"><button class="btn primary" id="deepTaste" type="button">Canciones que no conozco de mis artistas</button></div>
@@ -187,10 +199,16 @@
 <div id="toast" class="toast" hidden></div>
 <audio id="player" preload="none"></audio>
 <script src="config.js"></script>
-<script src="everynoise.js"></script>
+<script src="sources/net.js"></script>
+<script src="sources/deezer.js"></script>
+<script src="sources/everynoise.js"></script>
+<script src="sources/musicbrainz.js"></script>
+<script src="sources/listenbrainz.js"></script>
+<script src="sources/lastfm.js"></script>
+<script src="sources/import.js"></script>
+<script src="sources/spotify.js"></script>
 <script src="engine.js"></script>
-<script src="import.js"></script>
-<script src="spotify.js"></script>
+<script src="prompts.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

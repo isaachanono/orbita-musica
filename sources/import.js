@@ -1,13 +1,13 @@
 // Reads public playlist / album / artist links from streaming services and returns
 // { service, name, tracks: [{ title, artists: [..] }] }. No login: Deezer via its public API,
 // the rest by reading the public web page through a CORS-friendly reader.
-const SERVICES = { spotify: 'Spotify', apple: 'Apple Music', youtube: 'YouTube', deezer: 'Deezer', paste: 'Lista pegada', manual: 'Manual' };
+const SERVICES = { spotify: 'Spotify', apple: 'Apple Music', youtube: 'YouTube', deezer: 'Deezer', paste: 'Lista pegada', manual: 'Manual', shazam: 'Shazam' };
 
 async function fetchPage(url) {
   // Plain GET (no custom headers) so the browser does not need a CORS preflight.
   for (let i = 0; i < 2; i++) {
     try {
-      const r = await fetch('https://r.jina.ai/' + url);
+      const r = await fetch(readerUrl(url));
       const t = await r.text();
       if (r.ok && t.length > 300) return t;
     } catch { /* retry */ }

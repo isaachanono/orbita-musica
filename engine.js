@@ -72,7 +72,7 @@ const NOT_ARTIST = /^(algo|para|un|una|el|la|los|las|que|si|cuando|de|lo|mas|muy
 function parseIntent(prompt) {
   const raw = prompt.trim();
   const t = norm(raw);
-  const intent = { raw, genres: [], moods: [], artists: [], deep: [], deepTaste: false, format: null, era: null, region: null, keywords: [] };
+  const intent = { raw, genres: [], moods: [], artists: [], deep: [], deepTaste: false, shazam: false, format: null, era: null, region: null, keywords: [] };
 
   for (const [fmt, keys] of FORMAT_KEYS) if (keys.some(k => t.includes(' ' + k))) { intent.format = fmt; break; }
 
@@ -104,6 +104,7 @@ function parseIntent(prompt) {
     intent.deep.push(name);
   }
   if (/ mis artistas | artistas que (ya )?conozco /.test(t)) intent.deepTaste = true;
+  if (/ (mis )?shazam/.test(t)) intent.shazam = true;
   intent.artists = intent.artists.filter(a => !intent.deep.some(d => norm(d) === norm(a)));
   const names = [...intent.artists, ...intent.deep].map(norm);
   intent.genres = intent.genres.filter(g => !names.some(n => n.includes(norm(g))));
@@ -113,7 +114,7 @@ function parseIntent(prompt) {
   for (const [k, v] of REGIONS) if (t.includes(' ' + k)) { intent.region = v; break; }
 
   if (intent.deep.length) intent.moods = [];
-  if (!intent.genres.length && !intent.moods.length && !intent.artists.length && !intent.deep.length && !intent.deepTaste) {
+  if (!intent.genres.length && !intent.moods.length && !intent.artists.length && !intent.deep.length && !intent.deepTaste && !intent.shazam) {
     const stop = new Set('algo quiero dame ponme necesito busco musica music para que con sin una uno unos unas el la los las de del y o a en mi me por favor muy mas tipo cosas canciones artistas album albums playlist nuevo nueva nuevas nuevos'.split(' '));
     intent.keywords = t.trim().split(' ').filter(w => w.length > 2 && !stop.has(w)).slice(0, 4);
   }
