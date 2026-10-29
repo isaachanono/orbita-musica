@@ -100,7 +100,7 @@ function parseIntent(prompt) {
     const name = m[2].trim(), n = norm(name).trim(), loose = /(canciones|rolas|temas) de$/i.test(m[1]);
     if (/^(mis|tus|los|las)? ?artistas\b/.test(n)) { intent.deepTaste = true; continue; }
     const moodOnly = n.split(' ').every(w => MOODS.some(md => md.keys.some(k => w.startsWith(k.split(' ')[0]))));
-    if (!n || n.length < 2 || NOT_ARTIST.test(n) || (loose && (GENRES.some(g => norm(g).trim() === n) || (typeof enFind === 'function' && enFind(n)) || intent.genres.some(g => n.startsWith(norm(g).trim())) || REGIONS.some(([k]) => n.startsWith(k)) || / (con|de los|de las|para|sin) /.test(' ' + n + ' '))) || moodOnly) continue;
+    if (!n || n.length < 2 || NOT_ARTIST.test(n) || (loose && (GENRES.some(g => norm(g).trim() === n) || (typeof enFind === 'function' && enFind(n)) || intent.genres.some(g => n.startsWith(norm(g).trim())) || (typeof enFind === 'function' && n.split(' ').slice(1, 4).some((_, i, w) => enFind(n.split(' ').slice(0, i + 1).join(' ')))))) || moodOnly) continue;
     intent.deep.push(name);
   }
   if (/ mis artistas | artistas que (ya )?conozco /.test(t)) intent.deepTaste = true;
