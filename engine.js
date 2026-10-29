@@ -66,12 +66,13 @@ const FORMAT_KEYS = [
 const ERAS = [[/\b(60s|sesentas|anos 60|60's)\b/, '60s'], [/\b(70s|setentas|anos 70|70's)\b/, '70s'], [/\b(80s|ochentas|anos 80|80's)\b/, '80s'], [/\b(90s|noventas|anos 90|90's)\b/, '90s'], [/\b(2000s|dosmiles|y2k)\b/, '2000s'], [/\b(nuev[oa]s?|reciente|2025|2026|actual)\b/, '2026']];
 const REGIONS = [['mexic', 'mexico'], ['latin', 'latino'], ['espanol', 'español'], ['japon', 'japan'], ['japanese', 'japan'], ['brasil', 'brasil'], ['brazil', 'brasil'], ['franc', 'french'], ['african', 'africa'], ['nigeria', 'nigeria'], ['corea', 'korean'], ['korean', 'korean'], ['argentin', 'argentina'], ['colombia', 'colombia'], ['peru', 'peru'], ['chile', 'chile'], ['cuba', 'cuba'], ['turk', 'turkish'], ['ital', 'italian'], ['aleman', 'german'], ['ingles', 'uk'], ['britan', 'uk'], ['arabe', 'arabic'], ['india', 'india']];
 const ARTIST_RE = /(?:parecid[oa]s? a|similar(?:es)? a|del estilo de|estilo de|tipo|como|onda|rollo|like|similar to|vibe de|vibes de|a lo)\s+(.+?)(?=\s+(?:pero|para|y|con|que|sin|o|mientras|cuando|en|de los|but|for|and|with)\s|[,.;!?]|$)/gi;
+const DEEP_RE = /(?:m[aá]s (?:canciones |rolas |temas )?de|otras (?:canciones |rolas |temas )?de|lo menos conocido de|deep cuts de|canciones de|rolas de|temas de)\s+(.+?)(?=\s+(?:pero|para|y que|que|sin|mientras|cuando|but|for)\s|[,.;!?]|$)/gi;
 const NOT_ARTIST = /^(algo|para|un|una|el|la|los|las|que|si|cuando|de|lo|mas|muy|esto|eso|tipo|cuando)\b/;
 
 function parseIntent(prompt) {
   const raw = prompt.trim();
   const t = norm(raw);
-  const intent = { raw, genres: [], moods: [], artists: [], format: null, era: null, region: null, keywords: [] };
+  const intent = { raw, genres: [], moods: [], artists: [], deep: [], deepTaste: false, format: null, era: null, region: null, keywords: [] };
 
   for (const [fmt, keys] of FORMAT_KEYS) if (keys.some(k => t.includes(' ' + k))) { intent.format = fmt; break; }
 
@@ -81,6 +82,8 @@ function parseIntent(prompt) {
     const ng = norm(g);
     if (rest.includes(ng)) { intent.genres.push(g); rest = rest.replace(ng, ' '); }
   }
+
+  if (typeof enMatchText === 'function' && intent.genres.length < 4) for (const g of enMatchText(rest)) { if (!intent.genres.includes(g)) { intent.genres.push(g); rest = rest.replace(norm(g), ' '); } }
 
   let m; ARTIST_RE.lastIndex = 0;
   while ((m = ARTIST_RE.exec(raw))) {
@@ -92,11 +95,25 @@ function parseIntent(prompt) {
     intent.artists.push(name);
   }
 
+  DEEP_RE.lastIndex = 0;
+  while ((m = DEEP_RE.exec(raw))) {
+    const name = m[1].trim(), n = norm(name).trim();
+    if (/^(mis|tus|los|las)? ?artistas\b/.test(n)) { intent.deepTaste = true; continue; }
+    const moodOnly = n.split(' ').every(w => MOODS.some(md => md.keys.some(k => w.startsWith(k.split(' ')[0]))));
+    if (!n || n.length < 2 || NOT_ARTIST.test(n) || GENRES.some(g => norm(g).trim() === n) || moodOnly) continue;
+    intent.deep.push(name);
+  }
+  if (/ mis artistas | artistas que (ya )?conozco /.test(t)) intent.deepTaste = true;
+  intent.artists = intent.artists.filter(a => !intent.deep.some(d => norm(d) === norm(a)));
+  const names = [...intent.artists, ...intent.deep].map(norm);
+  intent.genres = intent.genres.filter(g => !names.some(n => n.includes(norm(g))));
+
   for (const md of MOODS) if (md.keys.some(k => t.includes(' ' + k))) intent.moods.push(md);
   for (const [re, era] of ERAS) if (re.test(t)) { intent.era = era; break; }
   for (const [k, v] of REGIONS) if (t.includes(' ' + k)) { intent.region = v; break; }
 
-  if (!intent.genres.length && !intent.moods.length && !intent.artists.length) {
+  if (intent.deep.length) intent.moods = [];
+  if (!intent.genres.length && !intent.moods.length && !intent.artists.length && !intent.deep.length && !intent.deepTaste) {
     const stop = new Set('algo quiero dame ponme necesito busco musica music para que con sin una uno unos unas el la los las de del y o a en mi me por favor muy mas tipo cosas canciones artistas album albums playlist nuevo nueva nuevas nuevos'.split(' '));
     intent.keywords = t.trim().split(' ').filter(w => w.length > 2 && !stop.has(w)).slice(0, 4);
   }
@@ -106,7 +123,11 @@ function parseIntent(prompt) {
 function pickScenes(intent, novelty, rnd = Math.random) {
   const shuffle = a => a.map(v => [rnd(), v]).sort((x, y) => x[0] - y[0]).map(x => x[1]);
   const farShare = novelty / 100;
-  const swap = (g, p) => { const nb = NEIGHBORS[g]; return nb && rnd() < p ? { term: shuffle(nb)[0], from: g, far: true } : { term: g, from: null, far: false }; };
+  const nbOf = g => {
+    const own = NEIGHBORS[g], en = typeof enNear === 'function' ? enNear(g, 8, 0) : [];
+    return own && (!en.length || rnd() < 0.5) ? { list: own, en: false } : en.length ? { list: en, en: true } : null;
+  };
+  const swap = (g, p) => { const nb = nbOf(g); return nb && rnd() < p ? { term: shuffle(nb.list)[0], from: g, far: true, en: nb.en } : { term: g, from: null, far: false }; };
   const max = intent.artists.length ? 3 : 4;
   const scenes = intent.genres.slice(0, max).map(g => ({ term: g, from: null, far: false }));
   if (intent.genres.length && novelty >= 60 && scenes.length < max) scenes.push(swap(shuffle(intent.genres)[0], 1));

@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Descubre — música nueva con un prompt</title>
 <meta name="description" content="Escribe tu mood, actividad o un artista y descubre música realmente nueva, basada en tus gustos.">
-<meta name="theme-color" content="#fa233b">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%23fa233b'/><path d='M40 28v34a10 10 0 1 1-6-9V34l30-7v29a10 10 0 1 1-6-9V20z' fill='white'/></svg>">
+<meta name="theme-color" content="#0d0e12">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%23c6f432'/><stop offset='.5' stop-color='%233fe0c5'/><stop offset='1' stop-color='%237c5cff'/></linearGradient></defs><circle cx='50' cy='50' r='48' fill='url(%23g)'/><circle cx='50' cy='50' r='9' fill='%230d0e12'/></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -57,7 +57,7 @@
   <!-- DESCUBRIR -->
   <section class="view" data-view="descubrir">
     <h1 class="big">Descubrir</h1>
-    <p class="lede">Dime tu mood, la actividad o algo que te guste. Te encuentro música que <em>no</em> conoces.</p>
+    <p class="lede">Dime tu mood, la actividad, un género o un artista. Te encuentro música que <em>no</em> conoces — también canciones nuevas de artistas que ya escuchas.</p>
     <form id="form" class="prompt" autocomplete="off">
       <textarea id="prompt" rows="2" placeholder="ej. algo melancólico con groove para manejar de noche, parecido a Khruangbin"></textarea>
       <div class="examples" id="examples"></div>
@@ -86,6 +86,7 @@
       <button id="toPlaylist" type="button" class="btn">Guardar estas como playlist</button>
       <button id="copy" type="button" class="btn ghost">Copiar lista</button>
     </div>
+    <p class="credit">Géneros vecinos y artistas por escena: <a href="https://everynoise.com/" target="_blank" rel="noopener">Every Noise at Once</a> · catálogo y previews: Deezer</p>
   </section>
 
   <!-- MIS GUSTOS -->
@@ -112,7 +113,16 @@
     </div>
     <div class="stats" id="stats"></div>
     <div class="panel"><h3>Fuentes importadas</h3><div id="sources" class="rows"></div></div>
-    <div class="panel"><h3>Artistas que conoces <small class="mut">(los más frecuentes guían tus recomendaciones; no te los vuelvo a recomendar)</small></h3><div id="artistChips" class="chips"></div></div>
+    <div class="panel"><h3>Artistas que conoces <small class="mut">(toca uno para ver canciones suyas que no conoces)</small></h3>
+      <div class="actions left"><button class="btn primary" id="deepTaste" type="button">Canciones que no conozco de mis artistas</button></div>
+      <div id="artistChips" class="chips"></div></div>
+    <div class="panel" id="spPanel">
+      <h3>Pasar playlists a tu servicio</h3>
+      <p class="hint"><b>Spotify</b> (una sola vez): entra a <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener">developer.spotify.com/dashboard</a> → Create app → en “Redirect URI” pon <code id="spRedirect"></code> → marca “Web API” → guarda y copia el <b>Client ID</b> aquí. El Client ID no es secreto. Spotify exige que la cuenta dueña de la app tenga Premium y en modo desarrollo permite hasta 5 usuarios (los agregas en “User Management”).</p>
+      <form id="spForm" class="row-form" style="margin-top:10px"><input id="spClient" placeholder="Spotify Client ID" autocomplete="off"><button class="btn">Guardar</button></form>
+      <div class="actions left"><span id="spState" class="pill-state"></span><button class="btn" id="spConnect" type="button">Conectar Spotify</button><button class="btn ghost" id="spDisconnect" type="button" hidden>Desconectar</button></div>
+      <p class="hint">Apple Music, YouTube Music, Amazon Music y Tidal: usa “Copiar lista” en la playlist y pégala en <a href="https://www.tunemymusic.com/transfer" target="_blank" rel="noopener">TuneMyMusic</a> o <a href="https://soundiiz.com/" target="_blank" rel="noopener">Soundiiz</a>.</p>
+    </div>
     <div class="panel">
       <h3>Respaldo</h3>
       <p class="hint">Tus datos viven en este navegador. Descarga un respaldo para pasarlos a otro dispositivo.</p>
@@ -149,11 +159,13 @@
         <div class="actions left">
           <button class="btn primary" id="plPlay" type="button"><svg><use href="#i-play"/></svg>Reproducir</button>
           <button class="btn" id="plSuggest" type="button"><svg><use href="#i-spark"/></svg>Sugerir canciones</button>
+          <button class="btn" id="plSpotify" type="button">Pasar a Spotify</button>
           <button class="btn ghost" id="plCopy" type="button">Copiar lista</button>
           <button class="btn ghost" id="plExport" type="button">Exportar .txt</button>
           <button class="btn ghost danger" id="plDelete" type="button">Eliminar</button>
         </div>
-        <p class="hint">Para pasarla a Spotify, Apple Music o Amazon: copia la lista y pégala en <a href="https://www.tunemymusic.com/transfer" target="_blank" rel="noopener">TuneMyMusic</a> o <a href="https://soundiiz.com/" target="_blank" rel="noopener">Soundiiz</a>.</p>
+        <div id="plStatus" class="status" hidden></div>
+        <p class="hint">Para Apple Music, YouTube Music o Amazon: copia la lista y pégala en <a href="https://www.tunemymusic.com/transfer" target="_blank" rel="noopener">TuneMyMusic</a> o <a href="https://soundiiz.com/" target="_blank" rel="noopener">Soundiiz</a>.</p>
       </div>
     </div>
     <div id="plTracks" class="tracks"></div>
@@ -174,8 +186,11 @@
 <div id="menu" class="menu" hidden></div>
 <div id="toast" class="toast" hidden></div>
 <audio id="player" preload="none"></audio>
+<script src="config.js"></script>
+<script src="everynoise.js"></script>
 <script src="engine.js"></script>
 <script src="import.js"></script>
+<script src="spotify.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
