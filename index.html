@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Descubre — música nueva con un prompt</title>
+<meta name="description" content="Escribe tu mood, actividad o un artista y descubre música realmente nueva.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎧</text></svg>">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>Descubre<span>.</span></h1>
+  <p class="tag">Dime tu mood, la actividad o algo que te guste. Te encuentro música que <em>no</em> conoces.</p>
+</header>
+
+<main>
+  <form id="form" autocomplete="off">
+    <textarea id="prompt" rows="2" placeholder="ej. algo melancólico con groove para manejar de noche, parecido a Khruangbin"></textarea>
+    <div class="examples" id="examples"></div>
+
+    <div class="controls">
+      <div class="formats" role="radiogroup" aria-label="Formato">
+        <label><input type="radio" name="format" value="auto" checked><span>Auto</span></label>
+        <label><input type="radio" name="format" value="track"><span>Canciones</span></label>
+        <label><input type="radio" name="format" value="artist"><span>Artistas</span></label>
+        <label><input type="radio" name="format" value="album"><span>Álbumes</span></label>
+        <label><input type="radio" name="format" value="playlist"><span>Playlist</span></label>
+      </div>
+      <label class="novelty">
+        <span>Qué tan nuevo</span>
+        <input type="range" id="novelty" min="0" max="100" value="70">
+        <b id="noveltyLabel">Lejos</b>
+      </label>
+      <button type="submit" id="go">Descubrir</button>
+    </div>
+  </form>
+
+  <section id="intent" class="intent" hidden></section>
+  <section id="status" class="status" hidden></section>
+  <section id="results" class="results"></section>
+  <div id="actions" class="actions" hidden>
+    <button id="again" type="button">Otra tanda</button>
+    <button id="copy" type="button">Copiar lista</button>
+  </div>
+
+  <details class="saved" id="savedBox">
+    <summary>Mis guardados <span id="savedCount">0</span> · Ya conocidos <span id="knownCount">0</span></summary>
+    <div id="savedList"></div>
+    <button id="clearKnown" type="button" class="link">Borrar "ya conocidos"</button>
+  </details>
+</main>
+
+<footer>
+  Catálogo y previews: <a href="https://www.deezer.com" target="_blank" rel="noopener">Deezer</a>. Sin login: abre cada resultado en tu app favorita.
+</footer>
+
+<audio id="player" preload="none"></audio>
+<script src="engine.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
