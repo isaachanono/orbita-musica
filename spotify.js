@@ -71,7 +71,7 @@ const Spotify = (() => {
     await Promise.all(Array.from({ length: Math.min(4, p.tracks.length) }, async () => {
       while (i < p.tracks.length) {
         const k = i++;
-        res[k] = await findUri(p.tracks[k]).catch(e => { if (e.message === 'auth') throw e; return null; });
+        res[k] = await findUri(p.tracks[k]);
         progress(++done, p.tracks.length);
       }
     }));
