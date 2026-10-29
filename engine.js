@@ -69,6 +69,10 @@ const ARTIST_RE = /(?:parecid[oa]s? a|similar(?:es)? a|del estilo de|estilo de|t
 const DEEP_RE = /(m[aá]s (?:canciones |rolas |temas )?de|otras (?:canciones |rolas |temas )?de|lo menos conocido de|deep cuts de|canciones de|rolas de|temas de)\s+(.+?)(?=\s+(?:pero|para|y que|que|sin|mientras|cuando|but|for)\s|[,.;!?]|$)/gi;
 const NOT_ARTIST = /^(algo|para|un|una|el|la|los|las|que|si|cuando|de|lo|mas|muy|esto|eso|tipo|cuando)\b/;
 
+// In loose phrases ("canciones de X"), X is a genre/region search when it is exactly one, or "<genre> con/para/… qualifier".
+const genreLike = x => GENRES.some(g => norm(g).trim() === x) || (typeof enFind === 'function' && !!enFind(x)) || REGIONS.some(([k]) => x.startsWith(k) && !x.includes(' '));
+const looseGenre = n => { const m = n.match(/^(.+?) (?:con|para|sin|de|y|que|en) /); return genreLike(n) || (!!m && genreLike(m[1])); };
+
 function parseIntent(prompt) {
   const raw = prompt.trim();
   const t = norm(raw);
@@ -100,7 +104,7 @@ function parseIntent(prompt) {
     const name = m[2].trim(), n = norm(name).trim(), loose = /(canciones|rolas|temas) de$/i.test(m[1]);
     if (/^(mis|tus|los|las)? ?artistas\b/.test(n)) { intent.deepTaste = true; continue; }
     const moodOnly = n.split(' ').every(w => MOODS.some(md => md.keys.some(k => w.startsWith(k.split(' ')[0]))));
-    if (!n || n.length < 2 || NOT_ARTIST.test(n) || (loose && (GENRES.some(g => norm(g).trim() === n) || (typeof enFind === 'function' && enFind(n)) || intent.genres.some(g => n.startsWith(norm(g).trim())) || (typeof enFind === 'function' && n.split(' ').slice(1, 4).some((_, i, w) => enFind(n.split(' ').slice(0, i + 1).join(' ')))))) || moodOnly) continue;
+    if (!n || n.length < 2 || NOT_ARTIST.test(n) || (loose && looseGenre(n)) || moodOnly) continue;
     intent.deep.push(name);
   }
   if (/ mis artistas | artistas que (ya )?conozco /.test(t)) intent.deepTaste = true;
