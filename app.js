@@ -7,7 +7,7 @@ const store = {
 };
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const K = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').normalize('NFC').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
-const cssUrl = u => /^https:\/\/[^\s"'()\\<>]+$/.test(String(u || '')) ? u : '';
+const cssUrl = u => /^https:\/\/[^\s"'()\\<>&]+$/.test(String(u || '')) ? u : '';
 const safeHref = u => /^https?:\/\//i.test(String(u || '')) ? u : '';
 const TK = (artist, title) => K(artist) + '|' + K(String(title || '').replace(/\s*[([].*$/, ''));
 const shuffle = a => a.map(v => [Math.random(), v]).sort((x, y) => x[0] - y[0]).map(x => x[1]);
