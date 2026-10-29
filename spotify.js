@@ -61,7 +61,7 @@ const Spotify = (() => {
     for (const q of [`track:${title} artist:${artist}`, `${artist} ${title}`]) {
       const items = (await api('/search?' + new URLSearchParams({ q, type: 'track', limit: 5 }))).tracks?.items || [];
       const byArtist = items.filter(x => x.artists.some(a => nk(a.name) === nk(artist)));
-      const hit = byArtist.find(x => nk(x.name).startsWith(nk(title)) || nk(title).startsWith(nk(x.name)));
+      const hit = byArtist.find(x => nk(clean(x.name)) === nk(title)) || byArtist.find(x => nk(x.name).startsWith(nk(title)));
       if (hit) return hit.uri;
     }
     return null;
