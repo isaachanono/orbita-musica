@@ -17,7 +17,13 @@ async function fetchPage(url) {
 }
 const pageTitle = md => ((md.match(/^Title:\s*(.+)$/m) || [])[1] || '').replace(/^\u200e/, '').replace(/\s*-\s*(Playlist|Album|Single|EP)?\s*-?\s*(Apple Music|Spotify|YouTube)\s*$/i, '').replace(/\s*-\s*(Playlist|Album)$/i, '').trim();
 
-const splitArtists = s => String(s || '').split(/\s*(?:,|&|\|| x | y | feat\.?| ft\.?| featuring | with )\s*/i).map(x => x.replace(/\s*[‘“«"][^’”»"]*$/, '').replace(/^[\s'"‘’“”«»]+|[\s'"‘’“”«»]+$/g, '').trim()).filter(Boolean);
+const cleanArtist = x => {
+  x = x.replace(/\s*[‘“«"][^’”»"]+$/, '').trim();
+  if (/^[‘“«"].*[’”»"]$/.test(x)) x = x.slice(1, -1).trim();
+  if (!/[‘“«"]/.test(x.slice(0, -1))) x = x.replace(/[’”»"]+$/, '');
+  return x.replace(/^[’”»]+/, '').trim();
+};
+const splitArtists = s => String(s || '').split(/\s*(?:,|&|\|| x | y | feat\.?| ft\.?| featuring | with )\s*|\s+\/\s+/i).map(cleanArtist).filter(Boolean);
 
 async function importSpotify(type, id) {
   const md = await fetchPage(`https://open.spotify.com/embed/${type}/${id}`);
