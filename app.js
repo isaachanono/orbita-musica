@@ -29,6 +29,7 @@ function addArtist(name, { id = null, src = 'manual', w = 1 } = {}) {
   const k = K(name); if (!k) return null;
   const e = db.artists[k] || (db.artists[k] = { name, n: 0, srcs: [] });
   e.n += w;
+  e.by = e.by || {}; e.by[src] = (e.by[src] || 0) + w;
   if (id) { e.id = id; knownIds.add(String(id)); }
   if (!e.srcs.includes(src)) e.srcs.push(src);
   return k;
@@ -685,6 +686,7 @@ function removeSource(id) {
   for (const [k, e] of Object.entries(db.artists)) {
     if (!e.srcs.includes(id)) continue;
     e.srcs = e.srcs.filter(x => x !== id);
+    if (e.by?.[id]) { e.n = Math.max(0, e.n - e.by[id]); delete e.by[id]; }
     if (!e.srcs.length) { delete db.artists[k]; if (e.id) knownIds.delete(String(e.id)); }
   }
   const gone = db.sources.find(s => s.id === id);
