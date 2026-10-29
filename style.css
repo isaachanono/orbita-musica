@@ -323,7 +323,8 @@ button.chip em{font-style:normal;opacity:.7;font-size:11px}
 .ln.en{border-top:2px dashed var(--acc2)}.ln.rel{border-top-color:var(--acc)}.ln.via{border-top:2px dotted var(--acc)}
 .map-empty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:30px}
 @media (max-width:760px){
-  .map-wrap{height:62vh;min-height:380px;border-radius:18px}
+  .map-wrap{height:auto;min-height:0;overflow:visible;border-radius:18px}
+  #mapSvg{height:62vh;min-height:380px;border-radius:18px}
   .map-info{position:static;width:auto;max-height:none;margin-top:12px;border-radius:16px}
   .map-legend{display:none}
 }
