@@ -6,7 +6,9 @@ const store = {
   set: (k, v) => localStorage.setItem(k, JSON.stringify(v)),
 };
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const K = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9ñ]+/g, ' ').trim();
+const K = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').normalize('NFC').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+const cssUrl = u => /^https:\/\/[^\s"'()\\<>]+$/.test(String(u || '')) ? u : '';
+const safeHref = u => /^https?:\/\//i.test(String(u || '')) ? u : '';
 const TK = (artist, title) => K(artist) + '|' + K(String(title || '').replace(/\s*[([].*$/, ''));
 const shuffle = a => a.map(v => [Math.random(), v]).sort((x, y) => x[0] - y[0]).map(x => x[1]);
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -18,7 +20,7 @@ const db = Object.assign({ artists: {}, tracks: [], ids: [], liked: [], sources:
 (function migrate() {
   const oldKnown = store.get('known', null), oldSaved = store.get('saved', null);
   if (oldKnown) { db.ids = [...new Set([...db.ids, ...oldKnown.map(String)])]; localStorage.removeItem('known'); }
-  if (oldSaved) { oldSaved.forEach(s => db.liked.push({ id: s.link, title: s.title, artist: s.sub, link: s.link })); localStorage.removeItem('saved'); }
+  if (oldSaved) { oldSaved.forEach(s => { const m = String(s.link || '').match(/deezer\.com\/(?:[a-z]{2}\/)?track\/(\d+)/); db.liked.push({ id: m ? m[1] : 'legacy-' + uid(), title: s.title, artist: s.sub, link: s.link, legacy: !m }); }); localStorage.removeItem('saved'); }
 })();
 let knownTracks = new Set(db.tracks);
 let knownIds = new Set(db.ids.map(String));
@@ -31,6 +33,10 @@ function addArtist(name, { id = null, src = 'manual', w = 1 } = {}) {
   if (id) { e.id = id; knownIds.add(String(id)); }
   if (!e.srcs.includes(src)) e.srcs.push(src);
   return k;
+}
+function markKnownTrack(artist, title) {
+  const tk = TK(artist, title); knownTracks.add(tk);
+  db.manualTracks = [...new Set([...(db.manualTracks || []), tk])];
 }
 const isKnownArtist = a => a && (knownIds.has(String(a.id)) || !!db.artists[K(a.name)]);
 const tasteList = () => Object.values(db.artists).sort((a, b) => b.n - a.n);
@@ -209,6 +215,9 @@ async function nextItems(s, n) {
     for (const it of await ensureTrack(batch)) {
       if (out.length >= n) { s.queue.unshift(it); continue; }
       if (!stillValid(s, it) || knownTracks.has(TK(it.artist.name, it.track.title))) continue;
+      const shownT = s.shownTracks || (s.shownTracks = new Set());
+      if (shownT.has(String(it.track.id))) continue;
+      shownT.add(String(it.track.id));
       if (s.fmt === 'album') { const al = it.track.album?.id; if (!al || s.shownAlbums.has(al)) continue; s.shownAlbums.add(al); }
       s.shownArtists.add(it.artist.id);
       out.push(it);
@@ -232,7 +241,7 @@ async function playTrack(t, list = null) {
   if (now && sameTrack(now, t)) { player.paused ? player.play() : player.pause(); return; }
   now = t;
   $('#pTitle').textContent = t.title; $('#pArtist').textContent = t.artist;
-  $('#pArt').style.backgroundImage = t.cover ? `url('${t.cover}')` : '';
+  $('#pArt').style.backgroundImage = t.cover ? `url('${cssUrl(t.cover)}')` : '';
   $('#pSide').innerHTML = links(`${t.artist} ${t.title}`);
   let src = t.preview || await freshPreview(t);
   if (!src) { toast('Esta canción no tiene preview'); return; }
@@ -299,7 +308,7 @@ function tile(it, fmt) {
   if (fmt === 'album') { title = t.album || t.title; q = `${a.name} ${t.album || ''}`; }
   const el = document.createElement('article');
   el.className = `tile ${fmt}`; el.dataset.tid = t.id;
-  el.innerHTML = `<div class="art" style="background-image:url('${esc(cover)}')"><button class="pbtn" title="Preview 30 s">${icon('play')}</button></div>
+  el.innerHTML = `<div class="art" style="background-image:url('${cssUrl(cover)}')"><button class="pbtn" title="Preview 30 s">${icon('play')}</button></div>
   <div class="meta"><div class="t-title" title="${esc(title)}">${esc(title)}</div><div class="t-sub">${sub}</div><div class="why">${esc(it.why)}</div>
   <div class="t-acts">
     <button class="icon-btn" data-a="like" title="Guardar (te doy otra)">${icon('heart')}</button>
@@ -316,7 +325,7 @@ function tile(it, fmt) {
     const act = b.dataset.a;
     if (act === 'add') { e.stopPropagation(); openMenu(b, [t]); return; }
     if (act === 'like') { like(t); toast('Guardada ♥ — aquí va otra opción'); }
-    if (act === 'known') { addArtist(a.name, { id: a.id, src: 'manual' }); knownTracks.add(TK(a.name, t.title)); persist(); toast(`Anotado: ya conoces a ${a.name}`); }
+    if (act === 'known') { addArtist(a.name, { id: a.id, src: 'manual' }); markKnownTrack(a.name, t.title); persist(); toast(`Anotado: ya conoces a ${a.name}`); }
     replaceTile(el);
   };
   el._track = t;
@@ -403,7 +412,7 @@ function renderDraft(tracks, prompt) {
     $('#draftCount').textContent = `${tracks.length} canciones`;
     $('#draftRows').innerHTML = '';
     tracks.forEach((t, i) => $('#draftRows').appendChild(trackRow(t, i, tracks, [
-      { a: 'known', t: 'Ya la conozco', fn: async () => { addArtist(t.artist, { id: t.artistId }); knownTracks.add(TK(t.artist, t.title)); persist(); await swapIn(i); } },
+      { a: 'known', t: 'Ya la conozco', fn: async () => { addArtist(t.artist, { id: t.artistId }); markKnownTrack(t.artist, t.title); persist(); await swapIn(i); } },
       { a: 'swap', t: 'Otra opción', fn: () => swapIn(i) },
       { a: 'x', t: 'Quitar', fn: () => { tracks.splice(i, 1); draw(); } },
     ])));
@@ -451,10 +460,10 @@ $('#examples').querySelectorAll('button').forEach(b => b.onclick = () => { $('#p
 function trackRow(t, i, list, acts) {
   const el = document.createElement('div');
   el.className = 'trow'; el.dataset.tid = t.id;
-  el.innerHTML = `<span class="n">${i + 1}</span><div class="th" style="background-image:url('${esc(t.cover || '')}')">${icon('play')}</div>
+  el.innerHTML = `<span class="n">${i + 1}</span><div class="th" style="background-image:url('${cssUrl(t.cover)}')">${icon('play')}</div>
     <div class="tt"><b>${esc(t.title)}</b><span>${esc(t.artist)}${t.why ? ' · ' + esc(t.why) : ''}</span></div>
     <div class="ra">${acts.map((a, k) => `<button class="icon-btn" data-k="${k}" title="${esc(a.t)}">${icon(a.a)}</button>`).join('')}
-    <a href="https://open.spotify.com/search/${encodeURIComponent(t.artist + ' ' + t.title)}" target="_blank" rel="noopener">Spotify</a><a href="https://music.apple.com/us/search?term=${encodeURIComponent(t.artist + ' ' + t.title)}" target="_blank" rel="noopener">Apple</a><a href="https://music.youtube.com/search?q=${encodeURIComponent(t.artist + ' ' + t.title)}" target="_blank" rel="noopener">YouTube</a></div>`;
+    ${t.legacy && safeHref(t.link) ? `<a href="${esc(t.link)}" target="_blank" rel="noopener">Deezer</a>` : ''}<a href="https://open.spotify.com/search/${encodeURIComponent(t.artist + ' ' + t.title)}" target="_blank" rel="noopener">Spotify</a><a href="https://music.apple.com/us/search?term=${encodeURIComponent(t.artist + ' ' + t.title)}" target="_blank" rel="noopener">Apple</a><a href="https://music.youtube.com/search?q=${encodeURIComponent(t.artist + ' ' + t.title)}" target="_blank" rel="noopener">YouTube</a></div>`;
   el.querySelector('.th').onclick = () => playTrack(t, list);
   el.querySelectorAll('[data-k]').forEach(b => b.onclick = e => { e.stopPropagation(); acts[+b.dataset.k].fn(b); });
   return el;
@@ -470,11 +479,11 @@ function addToPlaylist(p, tracks) {
 function collage(tracks, cls = '') {
   const covers = [...new Set(tracks.map(t => t.coverBig || t.cover).filter(Boolean))];
   if (!covers.length) return `<div class="collage empty ${cls}">${icon('note')}</div>`;
-  if (covers.length < 4) return `<div class="collage one ${cls}"><i style="background-image:url('${esc(covers[0])}')"></i></div>`;
-  return `<div class="collage ${cls}">${covers.slice(0, 4).map(c => `<i style="background-image:url('${esc(c)}')"></i>`).join('')}</div>`;
+  if (covers.length < 4) return `<div class="collage one ${cls}"><i style="background-image:url('${cssUrl(covers[0])}')"></i></div>`;
+  return `<div class="collage ${cls}">${covers.slice(0, 4).map(c => `<i style="background-image:url('${cssUrl(c)}')"></i>`).join('')}</div>`;
 }
 function renderSide() {
-  $('#sidePlaylists').innerHTML = db.playlists.map(p => { const c = p.tracks.find(t => t.cover)?.cover; return `<a href="#playlist/${p.id}" data-nav="playlist/${p.id}"><span class="pl-mini" style="${c ? `background-image:url('${esc(c)}')` : ''}"></span>${esc(p.name)}</a>`; }).join('') || '<span class="hint" style="padding:0 10px">Aún no tienes playlists</span>';
+  $('#sidePlaylists').innerHTML = db.playlists.map(p => { const c = p.tracks.find(t => t.cover)?.cover; return `<a href="#playlist/${p.id}" data-nav="playlist/${p.id}"><span class="pl-mini" style="${c ? `background-image:url('${cssUrl(c)}')` : ''}"></span>${esc(p.name)}</a>`; }).join('') || '<span class="hint" style="padding:0 10px">Aún no tienes playlists</span>';
 }
 function renderPlaylists() {
   $('#plGrid').innerHTML = db.playlists.map(p => `<div class="ptile" data-id="${p.id}">${collage(p.tracks)}<div class="meta"><b>${esc(p.name)}</b><span class="t-sub">${p.tracks.length} canciones</span></div></div>`).join('') || '<p class="empty">Crea una playlist o guarda una desde Descubrir.</p>';
@@ -538,13 +547,13 @@ $('#savedToPl').onclick = () => { if (!db.liked.length) return toast('Aún no gu
 /* ---------- gustos ---------- */
 function registerImport(res, url) {
   const id = uid();
-  const keys = new Set();
+  const keys = new Set(), tks = new Set();
   let n = 0;
   for (const t of res.tracks) {
     t.artists.forEach((a, j) => { const k = addArtist(a, { id: t.ids?.[j], src: id }); if (k) keys.add(k); });
-    if (t.title && t.artists[0]) { knownTracks.add(TK(t.artists[0], t.title)); n++; }
+    if (t.title && t.artists[0]) { const tk = TK(t.artists[0], t.title); knownTracks.add(tk); tks.add(tk); n++; }
   }
-  db.sources.unshift({ id, url, service: res.service, name: res.name, tracks: n, artists: keys.size, date: Date.now() });
+  db.sources.unshift({ id, url, service: res.service, name: res.name, tracks: n, artists: keys.size, keys: [...tks], date: Date.now() });
   persist();
   return { n, a: keys.size };
 }
@@ -576,13 +585,18 @@ function removeSource(id) {
     e.srcs = e.srcs.filter(x => x !== id);
     if (!e.srcs.length) { delete db.artists[k]; if (e.id) knownIds.delete(String(e.id)); }
   }
+  const gone = db.sources.find(s => s.id === id);
   db.sources = db.sources.filter(s => s.id !== id);
+  if (gone?.keys) {
+    const keep = new Set([...(db.manualTracks || []), ...db.sources.flatMap(s => s.keys || [])]);
+    gone.keys.forEach(k => { if (!keep.has(k)) knownTracks.delete(k); });
+  }
   persist(); renderGustos();
 }
 function renderGustos() {
   const arts = tasteList();
   $('#stats').innerHTML = `<div class="stat"><b>${arts.length}</b><span>artistas que conoces</span></div><div class="stat"><b>${knownTracks.size}</b><span>canciones registradas</span></div><div class="stat"><b>${db.sources.length}</b><span>fuentes importadas</span></div><div class="stat"><b>${db.liked.length}</b><span>guardados</span></div>`;
-  $('#sources').innerHTML = db.sources.map(s => `<div class="src"><span class="badge">${esc(SERVICES[s.service] || s.service)}</span><div class="nm"><b>${s.url ? `<a href="${esc(s.url)}" target="_blank" rel="noopener" style="color:inherit">${esc(s.name)}</a>` : esc(s.name)}</b><span>${s.tracks} canciones · ${s.artists} artistas · ${new Date(s.date).toLocaleDateString()}</span></div><button class="icon-btn" data-src="${s.id}" title="Quitar esta fuente">${icon('x')}</button></div>`).join('') || '<p class="empty" style="padding:6px 0">Todavía no importas nada.</p>';
+  $('#sources').innerHTML = db.sources.map(s => `<div class="src"><span class="badge">${esc(SERVICES[s.service] || s.service)}</span><div class="nm"><b>${safeHref(s.url) ? `<a href="${esc(s.url)}" target="_blank" rel="noopener" style="color:inherit">${esc(s.name)}</a>` : esc(s.name)}</b><span>${s.tracks} canciones · ${s.artists} artistas · ${new Date(s.date).toLocaleDateString()}</span></div><button class="icon-btn" data-src="${s.id}" title="Quitar esta fuente">${icon('x')}</button></div>`).join('') || '<p class="empty" style="padding:6px 0">Todavía no importas nada.</p>';
   $$('#sources [data-src]').forEach(b => b.onclick = () => removeSource(b.dataset.src));
   $('#artistChips').innerHTML = arts.slice(0, 300).map(e => `<span class="chip n">${esc(e.name)} <em>${Math.round(e.n)}</em><button data-k="${esc(K(e.name))}" title="Olvidar">${icon('x')}</button></span>`).join('') || '<p class="empty" style="padding:6px 0">Sin artistas todavía.</p>';
   $$('#artistChips [data-k]').forEach(b => b.onclick = () => { const e = db.artists[b.dataset.k]; if (e?.id) knownIds.delete(String(e.id)); delete db.artists[b.dataset.k]; persist(); renderGustos(); });

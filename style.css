@@ -236,3 +236,6 @@ input[type=range]{accent-color:var(--acc);width:120px}
   .row-form{flex-direction:column}
   .toast{bottom:150px}
 }
+
+[hidden]{display:none!important}
+.nav-h a{color:inherit}.nav-h a:hover{color:var(--txt)}

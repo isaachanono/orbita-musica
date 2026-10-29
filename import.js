@@ -17,7 +17,7 @@ async function fetchPage(url) {
 }
 const pageTitle = md => ((md.match(/^Title:\s*(.+)$/m) || [])[1] || '').replace(/^\u200e/, '').replace(/\s*-\s*(Playlist|Album|Single|EP)?\s*-?\s*(Apple Music|Spotify|YouTube)\s*$/i, '').replace(/\s*-\s*(Playlist|Album)$/i, '').trim();
 
-const splitArtists = s => String(s || '').split(/\s*(?:,|&| x | y | feat\.?| ft\.?| featuring | with )\s*/i).map(x => x.trim()).filter(Boolean);
+const splitArtists = s => String(s || '').split(/\s*(?:,|&|\||\/| x | y | feat\.?| ft\.?| featuring | with )\s*/i).map(x => x.replace(/\s*[‘“«"].*$/, '').replace(/^[\s'"‘’“”«»]+|[\s'"‘’“”«»]+$/g, '').trim()).filter(Boolean);
 
 async function importSpotify(type, id) {
   const md = await fetchPage(`https://open.spotify.com/embed/${type}/${id}`);
@@ -55,21 +55,22 @@ const ytChan = s => String(s || '').replace(/\s*-\s*Topic$/i, '').replace(/VEVO$
 async function importYouTube(list) {
   const md = await fetchPage(`https://www.youtube.com/playlist?list=${list}`);
   const name = (md.match(/^#\s+\[?([^\]\n]+?)\]?(?:\(|$)/m) || [])[1] || pageTitle(md) || 'YouTube';
-  const K = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const K = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\p{L}\p{N}]+/gu, '');
+  const LABEL = /\b(records|recordings|label|labels|entertainment|music|t-series|studios?|soundtrack|ost|tv|lyrics?|letras?)\b/i;
   const blocks = md.split(/\n(?=###\s+\[)/).slice(1);
   const tracks = blocks.map(b => {
     const t = (b.match(/^###\s+\[(.+?)\]\(https:\/\/www\.youtube\.com\/watch/) || [])[1];
     if (!t) return null;
     const c = (b.match(/\]\([^)]*\)[\s\S]*?\[([^\]\n]+)\]\(https:\/\/www\.youtube\.com\/(?:@|channel\/)/) || [])[1];
-    const chan = ytChan(c), title = ytClean(t);
-    const parts = title.split(/\s+[-–—]\s+/);
+    const chan = ytChan(c), title = ytClean(t).replace(/\s*\|.*$/, '');
+    const parts = title.split(/\s+[-–—]\s+/).map(x => x.replace(/^[\s'"‘’“”]+|[\s'"‘’“”]+$/g, ''));
     if (parts.length >= 2) {
       const l = parts[0], r = parts.slice(1).join(' - ');
       if (chan && K(r).includes(K(chan)) && !K(l).includes(K(chan))) return { title: l, artists: splitArtists(r) };
       return { title: r.replace(/\s+(ft|feat)\.?\s.*$/i, ''), artists: splitArtists(l) };
     }
-    return chan ? { title, artists: [chan] } : null;
-  }).filter(t => t && t.artists.length);
+    return chan && !LABEL.test(chan) ? { title, artists: [chan] } : null;
+  }).filter(t => t && t.artists.length && !t.artists.some(a => LABEL.test(a)));
   return { service: 'youtube', name, tracks };
 }
 
@@ -90,14 +91,18 @@ async function importDeezer(type, id) {
   return { service: 'deezer', name: meta.title || meta.name, tracks };
 }
 
+const hostOf = u => { try { return new URL(/^[a-z]+:\/\//i.test(u) ? u : 'https://' + u).hostname.toLowerCase(); } catch { return ''; } };
+const onHost = (h, d) => h === d || h.endsWith('.' + d);
+
 async function importLink(input) {
   const url = input.trim();
+  const h = hostOf(url);
   let m;
-  if ((m = url.match(/open\.spotify\.com\/(?:intl-[a-z-]+\/)?(?:embed\/)?(playlist|album|artist|track)\/([A-Za-z0-9]+)/))) return importSpotify(m[1], m[2]);
+  if (onHost(h, 'open.spotify.com') && (m = url.match(/open\.spotify\.com\/(?:intl-[a-z-]+\/)?(?:embed\/)?(playlist|album|artist|track)\/([A-Za-z0-9]+)/))) return importSpotify(m[1], m[2]);
   if ((m = url.match(/^spotify:(playlist|album|artist|track):([A-Za-z0-9]+)/))) return importSpotify(m[1], m[2]);
-  if (/music\.apple\.com\//.test(url)) return importApple(url.split('?')[0]);
-  if (/(youtube\.com|youtu\.be)/.test(url) && (m = url.match(/[?&]list=([A-Za-z0-9_-]+)/))) return importYouTube(m[1]);
-  if ((m = url.match(/deezer\.com\/(?:[a-z]{2}\/)?(playlist|album|artist)\/(\d+)/))) return importDeezer(m[1], m[2]);
+  if (h === 'music.apple.com') return importApple(new URL(/^https?:\/\//i.test(url) ? url : 'https://' + url).origin + new URL(/^https?:\/\//i.test(url) ? url : 'https://' + url).pathname);
+  if ((onHost(h, 'youtube.com') || h === 'youtu.be') && (m = url.match(/[?&]list=([A-Za-z0-9_-]+)/))) return importYouTube(m[1]);
+  if (onHost(h, 'deezer.com') && (m = url.match(/deezer\.com\/(?:[a-z]{2}\/)?(playlist|album|artist)\/(\d+)/))) return importDeezer(m[1], m[2]);
   if (/link\.deezer\.com|deezer\.page\.link|spotify\.link/.test(url)) throw new Error('Es un link corto: ábrelo en el navegador y copia el link largo de la barra de direcciones.');
   if (/amazon\.|tidal\.com/.test(url)) throw new Error('Amazon Music y Tidal no publican sus listas sin login. Usa “Pegar lista”.');
   throw new Error('No reconozco ese link. Usa uno de Spotify, Apple Music, YouTube o Deezer.');
