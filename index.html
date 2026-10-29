@@ -2,61 +2,213 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Descubre — música nueva con un prompt</title>
-<meta name="description" content="Escribe tu mood, actividad o un artista y descubre música realmente nueva.">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎧</text></svg>">
+<meta name="description" content="Escribe tu mood, actividad o un artista y descubre música realmente nueva, basada en tus gustos.">
+<meta name="theme-color" content="#0d0e12">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%23c6f432'/><stop offset='.5' stop-color='%233fe0c5'/><stop offset='1' stop-color='%237c5cff'/></linearGradient></defs><circle cx='50' cy='50' r='48' fill='url(%23g)'/><circle cx='50' cy='50' r='9' fill='%230d0e12'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header>
-  <h1>Descubre<span>.</span></h1>
-  <p class="tag">Dime tu mood, la actividad o algo que te guste. Te encuentro música que <em>no</em> conoces.</p>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12.5-7.5a1 1 0 0 0 0-1.72L8.5 3.64A1 1 0 0 0 7 4.5z" fill="currentColor"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><rect x="6" y="4" width="4.5" height="16" rx="1.2" fill="currentColor"/><rect x="13.5" y="4" width="4.5" height="16" rx="1.2" fill="currentColor"/></symbol>
+  <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 20.5s-7.5-4.6-9.3-9.2C1.5 8 3.6 4.5 7.1 4.5c2 0 3.6 1.1 4.9 2.8 1.3-1.7 2.9-2.8 4.9-2.8 3.5 0 5.6 3.5 4.4 6.8-1.8 4.6-9.3 9.2-9.3 9.2z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/></symbol>
+  <symbol id="i-known" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-swap" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8M4 4v4h4M4 13a8 8 0 0 0 14.3 4.9L20 16m0 4v-4h-4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="M6 15l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-next" viewBox="0 0 24 24"><path d="M5 5.5v13a.8.8 0 0 0 1.2.7l9.6-6.5a.8.8 0 0 0 0-1.4L6.2 4.8A.8.8 0 0 0 5 5.5z" fill="currentColor"/><rect x="17" y="5" width="2.5" height="14" rx="1" fill="currentColor"/></symbol>
+  <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 2.5l2.2 6.3 6.3 2.2-6.3 2.2L12 19.5l-2.2-6.3L3.5 11l6.3-2.2z" fill="currentColor"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M4 20c1.5-3.6 4.4-5.5 8-5.5s6.5 1.9 8 5.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M4 6h11M4 11h11M4 16h7" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M18 9v8.2a2.3 2.3 0 1 1-1.6-2.2" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+  <symbol id="i-note" viewBox="0 0 24 24"><path d="M9 18V6l11-2v12" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><circle cx="6.5" cy="18" r="2.5" fill="none" stroke="currentColor" stroke-width="1.9"/><circle cx="17.5" cy="16" r="2.5" fill="none" stroke="currentColor" stroke-width="1.9"/></symbol>
+</svg>
+
+<aside class="sidebar">
+  <a class="brand" href="#descubrir"><span class="logo"><svg><use href="#i-note"/></svg></span>Descubre</a>
+  <nav class="nav">
+    <a href="#descubrir" data-nav="descubrir"><svg><use href="#i-spark"/></svg>Descubrir</a>
+    <a href="#gustos" data-nav="gustos"><svg><use href="#i-user"/></svg>Mis gustos</a>
+    <a href="#guardados" data-nav="guardados"><svg><use href="#i-heart"/></svg>Guardados</a>
+  </nav>
+  <div class="nav-h"><a href="#playlists" data-nav="playlists">Playlists</a> <button class="icon-btn sm" id="newPl" title="Nueva playlist"><svg><use href="#i-plus"/></svg></button></div>
+  <nav class="nav" id="sidePlaylists"></nav>
+</aside>
+
+<header class="player" id="playerBar">
+  <div class="p-controls">
+    <button class="icon-btn" id="pPlay" title="Reproducir"><svg><use href="#i-play"/></svg></button>
+    <button class="icon-btn" id="pNext" title="Siguiente"><svg><use href="#i-next"/></svg></button>
+  </div>
+  <div class="lcd">
+    <div class="lcd-art" id="pArt"></div>
+    <div class="lcd-txt"><b id="pTitle">Elige algo para escuchar</b><span id="pArtist">Previews de 30 s</span></div>
+    <div class="lcd-bar"><i id="pProg"></i></div>
+  </div>
+  <div class="p-side" id="pSide"></div>
 </header>
 
-<main>
-  <form id="form" autocomplete="off">
-    <textarea id="prompt" rows="2" placeholder="ej. algo melancólico con groove para manejar de noche, parecido a Khruangbin"></textarea>
-    <div class="examples" id="examples"></div>
-
-    <div class="controls">
-      <div class="formats" role="radiogroup" aria-label="Formato">
-        <label><input type="radio" name="format" value="auto" checked><span>Auto</span></label>
-        <label><input type="radio" name="format" value="track"><span>Canciones</span></label>
-        <label><input type="radio" name="format" value="artist"><span>Artistas</span></label>
-        <label><input type="radio" name="format" value="album"><span>Álbumes</span></label>
-        <label><input type="radio" name="format" value="playlist"><span>Playlist</span></label>
+<main id="main">
+  <!-- DESCUBRIR -->
+  <section class="view" data-view="descubrir">
+    <h1 class="big">Descubrir</h1>
+    <p class="lede">Dime tu mood, la actividad, un género o un artista. Te encuentro música que <em>no</em> conoces — también canciones nuevas de artistas que ya escuchas.</p>
+    <form id="form" class="prompt" autocomplete="off">
+      <textarea id="prompt" rows="2" placeholder="ej. algo melancólico con groove para manejar de noche, parecido a Khruangbin"></textarea>
+      <div class="examples" id="examples"></div>
+      <div class="controls">
+        <div class="seg" role="radiogroup" aria-label="Formato">
+          <label><input type="radio" name="format" value="auto" checked><span>Auto</span></label>
+          <label><input type="radio" name="format" value="track"><span>Canciones</span></label>
+          <label><input type="radio" name="format" value="artist"><span>Artistas</span></label>
+          <label><input type="radio" name="format" value="album"><span>Álbumes</span></label>
+          <label><input type="radio" name="format" value="playlist"><span>Playlist</span></label>
+        </div>
+        <label class="novelty"><span>Qué tan nuevo</span><input type="range" id="novelty" min="0" max="100" value="70"><b id="noveltyLabel">Lejos</b></label>
+        <label class="switch" title="Usa los artistas de tus playlists importadas y tus guardados"><input type="checkbox" id="useTaste"><i></i><span>Usar mis gustos <small id="tasteCount"></small></span></label>
+        <button type="submit" id="go" class="btn primary">Descubrir</button>
       </div>
-      <label class="novelty">
-        <span>Qué tan nuevo</span>
-        <input type="range" id="novelty" min="0" max="100" value="70">
-        <b id="noveltyLabel">Lejos</b>
-      </label>
-      <button type="submit" id="go">Descubrir</button>
+    </form>
+    <div id="intent" class="intent" hidden></div>
+    <div id="status" class="status" hidden></div>
+    <div id="legend" class="legend" hidden>
+      <span><svg><use href="#i-heart"/></svg>Guardar</span><span><svg><use href="#i-known"/></svg>Ya la conozco</span><span><svg><use href="#i-swap"/></svg>Otra opción</span><span><svg><use href="#i-plus"/></svg>A playlist</span>
+      <small>Al guardar o marcar como conocida, te doy otra opción en su lugar.</small>
     </div>
-  </form>
+    <div id="results" class="grid"></div>
+    <div id="actions" class="actions" hidden>
+      <button id="again" type="button" class="btn">Nuevas 9 opciones</button>
+      <button id="toPlaylist" type="button" class="btn">Guardar estas como playlist</button>
+      <button id="copy" type="button" class="btn ghost">Copiar lista</button>
+    </div>
+    <p class="credit">Fuentes: catálogo y previews de Deezer · géneros y escenas de <a href="https://everynoise.com/" target="_blank" rel="noopener">Every Noise at Once</a> · clasificación de <a href="https://musicbrainz.org/" target="_blank" rel="noopener">MusicBrainz</a> · artistas afines de <a href="https://listenbrainz.org/" target="_blank" rel="noopener">ListenBrainz</a></p>
+  </section>
 
-  <section id="intent" class="intent" hidden></section>
-  <section id="status" class="status" hidden></section>
-  <section id="results" class="results"></section>
-  <div id="actions" class="actions" hidden>
-    <button id="again" type="button">Otra tanda</button>
-    <button id="copy" type="button">Copiar lista</button>
-  </div>
+  <!-- MIS GUSTOS -->
+  <section class="view" data-view="gustos" hidden>
+    <h1 class="big">Mis gustos</h1>
+    <p class="lede">Pega links de tus playlists para que la app sepa qué ya conoces y qué te gusta. Todo se guarda solo en este navegador.</p>
+    <div class="panel">
+      <h3>Importar playlist, álbum o artista</h3>
+      <form id="importForm" class="row-form">
+        <input id="importUrl" type="url" placeholder="https://open.spotify.com/playlist/…  ·  music.apple.com  ·  youtube.com/playlist?list=…  ·  deezer.com/playlist/…" required>
+        <button class="btn primary" id="importBtn">Importar</button>
+      </form>
+      <p class="hint">Funciona con links públicos de Spotify, Apple Music, YouTube / YouTube Music y Deezer. Amazon Music y Tidal todavía no: para esos usa “Pegar lista”.</p>
+      <div id="importStatus" class="status" hidden></div>
+      <details class="more">
+        <summary>Pegar lista de canciones o artistas</summary>
+        <textarea id="pasteList" rows="5" placeholder="Una por línea:  Artista - Canción   o solo   Artista"></textarea>
+        <button class="btn" id="pasteBtn" type="button">Agregar a lo que conozco</button>
+      </details>
+      <form id="addArtistForm" class="row-form" style="margin-top:12px">
+        <input id="addArtist" placeholder="Agregar un artista que ya conoces">
+        <button class="btn">Agregar</button>
+      </form>
+    </div>
+    <div class="panel" id="shazamPanel">
+      <h3>Shazam</h3>
+      <p class="hint">Shazam no tiene API pública, pero puede guardar todo lo que identificas en una playlist <b>“My Shazam Tracks”</b>. En la app de Shazam: Ajustes → <b>Conectar Spotify</b> (activa “Sync your songs to Spotify”) o <b>Apple Music</b>. Copia el link de esa playlist (en Apple Music compártela como pública) y pégalo aquí. Cuando shazamees más, toca “Actualizar”.</p>
+      <form id="shazamForm" class="row-form" style="margin-top:10px"><input id="shazamUrl" type="url" placeholder="Link de tu playlist “My Shazam Tracks” (Spotify o Apple Music)"><button class="btn primary" id="shazamBtn">Importar mis Shazams</button></form>
+      <div id="shazamStatus" class="status" hidden></div>
+      <div class="actions left"><button class="btn" id="shazamDiscover" type="button">Descubrir desde mis Shazams</button><button class="btn ghost" id="shazamOpen" type="button">Ver playlist Mis Shazams</button></div>
+    </div>
+    <div class="stats" id="stats"></div>
+    <div class="panel" id="genrePanel">
+      <h3>Tus géneros <small class="mut">(clasificados con MusicBrainz + Every Noise; toca uno para explorarlo)</small></h3>
+      <div id="genreChips" class="chips"></div>
+      <div class="actions left"><button class="btn" id="classify" type="button">Clasificar mis artistas</button><span id="classifyStatus" class="mut"></span></div>
+    </div>
+    <div class="panel"><h3>Fuentes importadas</h3><div id="sources" class="rows"></div></div>
+    <div class="panel"><h3>Artistas que conoces <small class="mut">(toca uno para ver canciones suyas que no conoces)</small></h3>
+      <div class="actions left"><button class="btn primary" id="deepTaste" type="button">Canciones que no conozco de mis artistas</button></div>
+      <div id="artistChips" class="chips"></div></div>
+    <div class="panel" id="spPanel">
+      <h3>Pasar playlists a tu servicio</h3>
+      <p class="hint"><b>Spotify</b> (una sola vez): entra a <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener">developer.spotify.com/dashboard</a> → Create app → en “Redirect URI” pon <code id="spRedirect"></code> → marca “Web API” → guarda y copia el <b>Client ID</b> aquí. El Client ID no es secreto. Spotify exige que la cuenta dueña de la app tenga Premium y en modo desarrollo permite hasta 5 usuarios (los agregas en “User Management”).</p>
+      <form id="spForm" class="row-form" style="margin-top:10px"><input id="spClient" placeholder="Spotify Client ID" autocomplete="off"><button class="btn">Guardar</button></form>
+      <div class="actions left"><span id="spState" class="pill-state"></span><button class="btn" id="spConnect" type="button">Conectar Spotify</button><button class="btn ghost" id="spDisconnect" type="button" hidden>Desconectar</button></div>
+      <p class="hint">Apple Music, YouTube Music, Amazon Music y Tidal: usa “Copiar lista” en la playlist y pégala en <a href="https://www.tunemymusic.com/transfer" target="_blank" rel="noopener">TuneMyMusic</a> o <a href="https://soundiiz.com/" target="_blank" rel="noopener">Soundiiz</a>.</p>
+    </div>
+    <div class="panel">
+      <h3>Respaldo</h3>
+      <p class="hint">Tus datos viven en este navegador. Descarga un respaldo para pasarlos a otro dispositivo.</p>
+      <div class="actions left">
+        <button class="btn" id="exportData" type="button">Descargar respaldo</button>
+        <label class="btn">Cargar respaldo<input type="file" id="importData" accept="application/json" hidden></label>
+        <button class="btn danger" id="wipe" type="button">Borrar todo</button>
+      </div>
+    </div>
+  </section>
 
-  <details class="saved" id="savedBox">
-    <summary>Mis guardados <span id="savedCount">0</span> · Ya conocidos <span id="knownCount">0</span></summary>
-    <div id="savedList"></div>
-    <button id="clearKnown" type="button" class="link">Borrar "ya conocidos"</button>
-  </details>
+  <!-- GUARDADOS -->
+  <section class="view" data-view="guardados" hidden>
+    <h1 class="big">Guardados</h1>
+    <p class="lede">Lo que te gustó al descubrir.</p>
+    <div class="actions left"><button class="btn primary" id="savedPlayAll" type="button">Reproducir</button><button class="btn" id="savedToPl" type="button">Crear playlist con mis guardados</button></div>
+    <div id="savedList" class="tracks"></div>
+  </section>
+
+  <!-- PLAYLISTS -->
+  <section class="view" data-view="playlists" hidden>
+    <h1 class="big">Playlists</h1>
+    <div class="actions left"><button class="btn primary" id="newPl2" type="button">Nueva playlist</button></div>
+    <div id="plGrid" class="grid pl"></div>
+  </section>
+
+  <section class="view" data-view="playlist" hidden>
+    <div class="pl-head">
+      <div class="collage" id="plCover"></div>
+      <div class="pl-meta">
+        <small class="mut">Playlist</small>
+        <input id="plName" class="pl-name" aria-label="Nombre de la playlist">
+        <span class="mut" id="plCount"></span>
+        <div class="actions left">
+          <button class="btn primary" id="plPlay" type="button"><svg><use href="#i-play"/></svg>Reproducir</button>
+          <button class="btn" id="plSuggest" type="button"><svg><use href="#i-spark"/></svg>Sugerir canciones</button>
+          <button class="btn" id="plSpotify" type="button">Pasar a Spotify</button>
+          <button class="btn ghost" id="plCopy" type="button">Copiar lista</button>
+          <button class="btn ghost" id="plExport" type="button">Exportar .txt</button>
+          <button class="btn ghost danger" id="plDelete" type="button">Eliminar</button>
+        </div>
+        <div id="plStatus" class="status" hidden></div>
+        <p class="hint">Para Apple Music, YouTube Music o Amazon: copia la lista y pégala en <a href="https://www.tunemymusic.com/transfer" target="_blank" rel="noopener">TuneMyMusic</a> o <a href="https://soundiiz.com/" target="_blank" rel="noopener">Soundiiz</a>.</p>
+      </div>
+    </div>
+    <div id="plTracks" class="tracks"></div>
+    <div id="plSuggestBox" hidden>
+      <h3 class="h3">Sugerencias para esta playlist</h3>
+      <div id="plSuggestions" class="tracks"></div>
+    </div>
+  </section>
 </main>
 
-<footer>
-  Catálogo y previews: <a href="https://www.deezer.com" target="_blank" rel="noopener">Deezer</a>. Sin login: abre cada resultado en tu app favorita.
-</footer>
+<nav class="tabbar">
+  <a href="#descubrir" data-nav="descubrir"><svg><use href="#i-spark"/></svg>Descubrir</a>
+  <a href="#gustos" data-nav="gustos"><svg><use href="#i-user"/></svg>Gustos</a>
+  <a href="#guardados" data-nav="guardados"><svg><use href="#i-heart"/></svg>Guardados</a>
+  <a href="#playlists" data-nav="playlists"><svg><use href="#i-list"/></svg>Playlists</a>
+</nav>
 
+<div id="menu" class="menu" hidden></div>
+<div id="toast" class="toast" hidden></div>
 <audio id="player" preload="none"></audio>
+<script src="config.js"></script>
+<script src="sources/net.js"></script>
+<script src="sources/deezer.js"></script>
+<script src="sources/everynoise.js"></script>
+<script src="sources/musicbrainz.js"></script>
+<script src="sources/listenbrainz.js"></script>
+<script src="sources/lastfm.js"></script>
+<script src="sources/import.js"></script>
+<script src="sources/spotify.js"></script>
 <script src="engine.js"></script>
+<script src="prompts.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

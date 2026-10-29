@@ -1,0 +1,8 @@
+name = "descubre-gateway"
+main = "index.js"
+compatibility_date = "2025-09-01"
+
+[vars]
+ALLOWED_ORIGINS = "https://isaachanono.github.io,http://localhost:8000,http://127.0.0.1:8000"
+
+# Secrets (never commit): npx wrangler secret put LASTFM_KEY   ·   optional: JINA_KEY
