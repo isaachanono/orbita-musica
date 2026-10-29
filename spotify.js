@@ -54,7 +54,7 @@ const Spotify = (() => {
     if (!r.ok) { let m = r.status; try { m = (await r.json()).error?.message || m; } catch {} throw new Error('Spotify: ' + m); }
     return r.status === 204 ? null : r.json();
   }
-  const clean = s => String(s || '').replace(/\s*[([].*?[)\]]/g, '').replace(/"/g, '').trim();
+  const clean = s => String(s || '').replace(/\s*[([].*?[)\]]/g, '').replace(/\s+-\s+.*$/, '').replace(/"/g, '').trim();
   const nk = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\p{L}\p{N}]+/gu, '');
   async function findUri(t) {
     const title = clean(t.title), artist = clean(t.artist);
