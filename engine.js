@@ -66,7 +66,7 @@ const FORMAT_KEYS = [
 const ERAS = [[/\b(60s|sesentas|anos 60|60's)\b/, '60s'], [/\b(70s|setentas|anos 70|70's)\b/, '70s'], [/\b(80s|ochentas|anos 80|80's)\b/, '80s'], [/\b(90s|noventas|anos 90|90's)\b/, '90s'], [/\b(2000s|dosmiles|y2k)\b/, '2000s'], [/\b(nuev[oa]s?|reciente|2025|2026|actual)\b/, '2026']];
 const REGIONS = [['mexic', 'mexico'], ['latin', 'latino'], ['espanol', 'español'], ['japon', 'japan'], ['japanese', 'japan'], ['brasil', 'brasil'], ['brazil', 'brasil'], ['franc', 'french'], ['african', 'africa'], ['nigeria', 'nigeria'], ['corea', 'korean'], ['korean', 'korean'], ['argentin', 'argentina'], ['colombia', 'colombia'], ['peru', 'peru'], ['chile', 'chile'], ['cuba', 'cuba'], ['turk', 'turkish'], ['ital', 'italian'], ['aleman', 'german'], ['ingles', 'uk'], ['britan', 'uk'], ['arabe', 'arabic'], ['india', 'india']];
 const ARTIST_RE = /(?:parecid[oa]s? a|similar(?:es)? a|del estilo de|estilo de|tipo|como|onda|rollo|like|similar to|vibe de|vibes de|a lo)\s+(.+?)(?=\s+(?:pero|para|y|con|que|sin|o|mientras|cuando|en|de los|but|for|and|with)\s|[,.;!?]|$)/gi;
-const DEEP_RE = /(?:m[aá]s (?:canciones |rolas |temas )?de|otras (?:canciones |rolas |temas )?de|lo menos conocido de|deep cuts de|canciones de|rolas de|temas de)\s+(.+?)(?=\s+(?:pero|para|y que|que|sin|mientras|cuando|but|for)\s|[,.;!?]|$)/gi;
+const DEEP_RE = /(m[aá]s (?:canciones |rolas |temas )?de|otras (?:canciones |rolas |temas )?de|lo menos conocido de|deep cuts de|canciones de|rolas de|temas de)\s+(.+?)(?=\s+(?:pero|para|y que|que|sin|mientras|cuando|but|for)\s|[,.;!?]|$)/gi;
 const NOT_ARTIST = /^(algo|para|un|una|el|la|los|las|que|si|cuando|de|lo|mas|muy|esto|eso|tipo|cuando)\b/;
 
 function parseIntent(prompt) {
@@ -97,10 +97,10 @@ function parseIntent(prompt) {
 
   DEEP_RE.lastIndex = 0;
   while ((m = DEEP_RE.exec(raw))) {
-    const name = m[1].trim(), n = norm(name).trim();
+    const name = m[2].trim(), n = norm(name).trim(), loose = /^(canciones|rolas|temas) de$/i.test(m[1]);
     if (/^(mis|tus|los|las)? ?artistas\b/.test(n)) { intent.deepTaste = true; continue; }
     const moodOnly = n.split(' ').every(w => MOODS.some(md => md.keys.some(k => w.startsWith(k.split(' ')[0]))));
-    if (!n || n.length < 2 || NOT_ARTIST.test(n) || GENRES.some(g => norm(g).trim() === n) || (typeof enFind === 'function' && enFind(n)) || moodOnly) continue;
+    if (!n || n.length < 2 || NOT_ARTIST.test(n) || (loose && (GENRES.some(g => norm(g).trim() === n) || (typeof enFind === 'function' && enFind(n)))) || moodOnly) continue;
     intent.deep.push(name);
   }
   if (/ mis artistas | artistas que (ya )?conozco /.test(t)) intent.deepTaste = true;
