@@ -739,11 +739,13 @@ async function importShazam(url) {
   finally { $('#shazamBtn').disabled = false; }
 }
 async function buildShazamPlaylist(list) {
-  const found = (await pool(list.slice(0, 60), 5, async t => {
-    const r = (await dz('/search', { q: `${t.artists[0]} ${t.title}`, limit: 5 })).data || [];
-    const x = r.find(y => K(y.artist?.name) === K(t.artists[0])) || r.find(y => t.artists.some(a => K(a) === K(y.artist?.name)));
+  const base = s => K(String(s || '').replace(/\s*[([].*?[)\]]/g, '').replace(/\s+-\s+.*$/, ''));
+  const found = (await pool(list, 5, async t => {
+    const r = (await dz('/search', { q: `${t.artists[0]} ${t.title}`, limit: 8 })).data || [];
+    const x = r.find(y => t.artists.some(a => K(a) === K(y.artist?.name)) && (base(y.title) === base(t.title) || base(y.title_short) === base(t.title)));
     return x ? toTrack({ track: x, artist: x.artist, why: 'Shazam' }) : null;
   })).filter(Boolean);
+  if (!found.length && list.length) throw new Error('No pude encontrar tus Shazams en el catálogo ahora mismo; tu playlist anterior quedó igual. Intenta de nuevo.');
   let p = db.playlists.find(x => x.id === db.prefs.shazamPl);
   if (!p) { p = createPlaylist('Mis Shazams'); db.prefs.shazamPl = p.id; }
   p.tracks = []; addToPlaylist(p, found);
