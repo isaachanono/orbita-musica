@@ -169,6 +169,8 @@ function parseFileTracks(text) {
   const h = (rows[0] || []).map(x => x.trim().toLowerCase());
   const col = names => names.map(c => h.indexOf(c)).find(i => i >= 0);
   const ti = col(TITLE_COLS), ai = col(ARTIST_COLS);
-  if (ai === undefined || rows.length < 2) return parsePasted(text);
+  const tabular = h.length > 1 && rows.slice(1).every(r => r.length === h.length);
+  if (ai === undefined) return tabular ? [] : parsePasted(text);
+  if (rows.length < 2) return [];
   return rows.slice(1).map(r => ({ title: ti === undefined ? '' : String(r[ti] || '').trim(), artists: String(r[ai] || '').split(/\s*;\s*/).flatMap(splitArtists) })).filter(t => t.artists.length);
 }
