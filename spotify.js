@@ -55,7 +55,7 @@ const Spotify = (() => {
     return r.status === 204 ? null : r.json();
   }
   const clean = s => String(s || '').replace(/\s*[([].*?[)\]]/g, '').replace(/"/g, '').trim();
-  const VERSION = /\s+-\s+[^-]*\b(remaster(ed)?|version|versi[oó]n|live|en vivo|edit|mix|mono|stereo|acoustic|ac[uú]stic[oa]|demo|single|radio)\b[^-]*$/i;
+  const VERSION = /\s+-\s+.*\b(remaster(ed)?|version|versi[oó]n|live|en vivo|edit|mix|mono|stereo|acoustic|ac[uú]stic[oa]|demo|single|radio)\b.*$/i;
   const base = s => clean(s).replace(VERSION, '');
   const nk = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\p{L}\p{N}]+/gu, '');
   async function findUri(t) {
