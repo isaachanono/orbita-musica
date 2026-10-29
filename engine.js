@@ -100,7 +100,7 @@ function parseIntent(prompt) {
     const name = m[1].trim(), n = norm(name).trim();
     if (/^(mis|tus|los|las)? ?artistas\b/.test(n)) { intent.deepTaste = true; continue; }
     const moodOnly = n.split(' ').every(w => MOODS.some(md => md.keys.some(k => w.startsWith(k.split(' ')[0]))));
-    if (!n || n.length < 2 || NOT_ARTIST.test(n) || GENRES.some(g => norm(g).trim() === n) || moodOnly) continue;
+    if (!n || n.length < 2 || NOT_ARTIST.test(n) || GENRES.some(g => norm(g).trim() === n) || (typeof enFind === 'function' && enFind(n)) || moodOnly) continue;
     intent.deep.push(name);
   }
   if (/ mis artistas | artistas que (ya )?conozco /.test(t)) intent.deepTaste = true;
