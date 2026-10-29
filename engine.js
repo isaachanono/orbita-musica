@@ -97,7 +97,7 @@ function parseIntent(prompt) {
 
   DEEP_RE.lastIndex = 0;
   while ((m = DEEP_RE.exec(raw))) {
-    const name = m[2].trim(), n = norm(name).trim(), loose = /^(canciones|rolas|temas) de$/i.test(m[1]);
+    const name = m[2].trim(), n = norm(name).trim(), loose = /(canciones|rolas|temas) de$/i.test(m[1]);
     if (/^(mis|tus|los|las)? ?artistas\b/.test(n)) { intent.deepTaste = true; continue; }
     const moodOnly = n.split(' ').every(w => MOODS.some(md => md.keys.some(k => w.startsWith(k.split(' ')[0]))));
     if (!n || n.length < 2 || NOT_ARTIST.test(n) || (loose && (GENRES.some(g => norm(g).trim() === n) || (typeof enFind === 'function' && enFind(n)))) || moodOnly) continue;
