@@ -1,7 +1,7 @@
 // Reads public playlist / album / artist links from streaming services and returns
 // { service, name, tracks: [{ title, artists: [..] }] }. No login: Deezer via its public API,
 // the rest by reading the public web page through a CORS-friendly reader.
-const SERVICES = { spotify: 'Spotify', apple: 'Apple Music', youtube: 'YouTube', deezer: 'Deezer', paste: 'Lista pegada', manual: 'Manual', shazam: 'Shazam' };
+const SERVICES = { spotify: 'Spotify', apple: 'Apple Music', youtube: 'YouTube', deezer: 'Deezer', paste: 'Lista pegada', file: 'Archivo', manual: 'Manual', shazam: 'Shazam' };
 
 async function fetchPage(url) {
   // Plain GET (no custom headers) so the browser does not need a CORS preflight.
@@ -25,14 +25,19 @@ const cleanArtist = x => {
 };
 const splitArtists = s => String(s || '').split(/\s*(?:,|&|\|| x | y | feat\.?| ft\.?| featuring | with )\s*|\s+\/\s+/i).map(cleanArtist).filter(Boolean);
 
+const EMBED_CAP = 100;
 async function importSpotify(type, id) {
+  if ((type === 'playlist' || type === 'album') && typeof Spotify !== 'undefined' && Spotify.canRead()) {
+    try { const r = await Spotify.readPlaylist(type, id); if (r.tracks.length) return { service: 'spotify', name: r.name, tracks: r.tracks, full: true }; }
+    catch (e) { console.warn('Spotify API read failed, using public page', e); }
+  }
   const md = await fetchPage(`https://open.spotify.com/embed/${type}/${id}`);
   const name = pageTitle(md) || 'Spotify';
   let tracks = [...md.matchAll(/^\s*\d+\.\s+###\s+(.+?)\s*\n+\s*####\s+(.+?)\s*$/gm)].map(m => ({ title: m[1], artists: splitArtists(m[2].replace(/^E\s+(?=\S)/, '')) }));
   if (type === 'artist') tracks = [{ title: '', artists: [name] }, ...tracks.map(t => ({ ...t, artists: [name, ...t.artists.filter(a => a !== name)] }))];
   if (!tracks.length && type === 'track') { const by = md.match(/^####\s+(.+)$/m) || md.match(/^#+\s+.+\n+(.+)$/m); if (by) tracks = [{ title: name, artists: splitArtists(by[1]) }]; }
   if (!tracks.length) throw new Error('Spotify no regresó canciones (¿playlist privada?)');
-  return { service: 'spotify', name, tracks };
+  return { service: 'spotify', name, tracks, truncated: type === 'playlist' && tracks.length >= EMBED_CAP };
 }
 
 async function importApple(url) {
@@ -53,31 +58,47 @@ async function importApple(url) {
   let out = tracks.filter(t => t.title && t.artists.length);
   if (!out.length && loose.length) out = loose.slice(0, 20).map(a => ({ title: '', artists: [a] }));
   if (!out.length && /\/artist\//.test(url)) out = [{ title: '', artists: [name] }];
-  return { service: 'apple', name, tracks: out };
+  return { service: 'apple', name, tracks: out, truncated: /\/playlist\//.test(url) && out.length >= EMBED_CAP };
 }
 
 const ytClean = s => String(s || '').replace(/\s*[([][^)\]]*(official|video|audio|lyric|letra|visualizer|oficial|en vivo|live|hd|4k)[^)\]]*[)\]]/gi, '').replace(/\s+/g, ' ').trim();
 const ytChan = s => String(s || '').replace(/\s*-\s*Topic$/i, '').replace(/VEVO$/i, '').replace(/\s*(official|oficial)$/i, '').trim();
+const ytLabel = /\b(records|recordings|label|labels|entertainment|music|t-series|studios?|soundtrack|ost|tv|lyrics?|letras?)\b/i;
+const ytK = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\p{L}\p{N}]+/gu, '');
+function ytTrack(t, c) {
+  const chan = ytChan(c), title = ytClean(t).replace(/\s*\|.*$/, '');
+  const parts = title.split(/\s+[-–—]\s+/).map(x => x.replace(/^[\s'"‘’“”]+|[\s'"‘’“”]+$/g, ''));
+  if (parts.length >= 2) {
+    const l = parts[0], r = parts.slice(1).join(' - ');
+    if (chan && ytK(r).includes(ytK(chan)) && !ytK(l).includes(ytK(chan))) return { title: l, artists: splitArtists(r) };
+    return { title: r.replace(/\s+(ft|feat)\.?\s.*$/i, ''), artists: splitArtists(l) };
+  }
+  return chan && !ytLabel.test(chan) ? { title, artists: [chan] } : null;
+}
+// Full playlist through the YouTube Data API (1 quota unit per 50 videos) when a browser key is configured.
+async function importYouTubeApi(list, key) {
+  const get = async (path, q) => { const r = await fetch(`https://www.googleapis.com/youtube/v3/${path}?` + new URLSearchParams({ key, ...q })); const j = await r.json(); if (!r.ok) throw new Error(j.error?.message || r.status); return j; };
+  const meta = await get('playlists', { part: 'snippet', id: list });
+  const tracks = []; let pageToken = '';
+  do {
+    const j = await get('playlistItems', { part: 'snippet', maxResults: 50, playlistId: list, ...(pageToken ? { pageToken } : {}) });
+    (j.items || []).forEach(i => { const t = ytTrack(i.snippet?.title, i.snippet?.videoOwnerChannelTitle); if (t && t.artists.length) tracks.push(t); });
+    pageToken = j.nextPageToken;
+  } while (pageToken && tracks.length < 5000);
+  return { service: 'youtube', name: meta.items?.[0]?.snippet?.title || 'YouTube', tracks, full: true };
+}
 async function importYouTube(list) {
+  if (CFG.youtubeKey) { try { return await importYouTubeApi(list, CFG.youtubeKey); } catch (e) { console.warn('YouTube API failed, using public page', e); } }
   const md = await fetchPage(`https://www.youtube.com/playlist?list=${list}`);
   const name = (md.match(/^#\s+\[?([^\]\n]+?)\]?(?:\(|$)/m) || [])[1] || pageTitle(md) || 'YouTube';
-  const K = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\p{L}\p{N}]+/gu, '');
-  const LABEL = /\b(records|recordings|label|labels|entertainment|music|t-series|studios?|soundtrack|ost|tv|lyrics?|letras?)\b/i;
   const blocks = md.split(/\n(?=###\s+\[)/).slice(1);
   const tracks = blocks.map(b => {
     const t = (b.match(/^###\s+\[(.+?)\]\(https:\/\/www\.youtube\.com\/watch/) || [])[1];
     if (!t) return null;
     const c = (b.match(/\]\([^)]*\)[\s\S]*?\[([^\]\n]+)\]\(https:\/\/www\.youtube\.com\/(?:@|channel\/)/) || [])[1];
-    const chan = ytChan(c), title = ytClean(t).replace(/\s*\|.*$/, '');
-    const parts = title.split(/\s+[-–—]\s+/).map(x => x.replace(/^[\s'"‘’“”]+|[\s'"‘’“”]+$/g, ''));
-    if (parts.length >= 2) {
-      const l = parts[0], r = parts.slice(1).join(' - ');
-      if (chan && K(r).includes(K(chan)) && !K(l).includes(K(chan))) return { title: l, artists: splitArtists(r) };
-      return { title: r.replace(/\s+(ft|feat)\.?\s.*$/i, ''), artists: splitArtists(l) };
-    }
-    return chan && !LABEL.test(chan) ? { title, artists: [chan] } : null;
+    return ytTrack(t, c);
   }).filter(t => t && t.artists.length);
-  return { service: 'youtube', name, tracks };
+  return { service: 'youtube', name, tracks, truncated: blocks.length >= EMBED_CAP };
 }
 
 async function importDeezer(type, id) {
@@ -119,4 +140,35 @@ function parsePasted(text) {
     const p = l.split(/\s+[-–—]\s+/);
     return p.length >= 2 ? { title: p.slice(1).join(' - '), artists: splitArtists(p[0]) } : { title: '', artists: [l] };
   });
+}
+
+// Files exported by Exportify, TuneMyMusic, Soundiiz (CSV) or Apple Music / iTunes (tab-separated, UTF-16).
+async function readFileText(file) {
+  const buf = await file.arrayBuffer(), b = new Uint8Array(buf.slice(0, 2));
+  return new TextDecoder(b[0] === 0xFF && b[1] === 0xFE ? 'utf-16le' : b[0] === 0xFE && b[1] === 0xFF ? 'utf-16be' : 'utf-8').decode(buf).replace(/^\uFEFF/, '');
+}
+function parseTable(text) {
+  const head = text.split(/\r?\n/, 1)[0], cnt = ch => head.split(ch).length;
+  const d = cnt('\t') > cnt(',') ? '\t' : cnt(';') > cnt(',') ? ';' : ',';
+  const rows = []; let row = [], f = '', q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) { if (c === '"') { if (text[i + 1] === '"') { f += '"'; i++; } else q = false; } else f += c; }
+    else if (c === '"' && f === '') q = true;
+    else if (c === d) { row.push(f); f = ''; }
+    else if (c === '\n' || c === '\r') { if (c === '\r' && text[i + 1] === '\n') i++; row.push(f); rows.push(row); row = []; f = ''; }
+    else f += c;
+  }
+  if (f || row.length) { row.push(f); rows.push(row); }
+  return rows.filter(r => r.some(x => x.trim()));
+}
+const TITLE_COLS = ['track name', 'name', 'title', 'song', 'song name', 'track', 'track title', 'nombre', 'canción', 'cancion', 'título', 'titulo'];
+const ARTIST_COLS = ['artist name(s)', 'artist name', 'artist names', 'artists', 'artist', 'artist(s)', 'artista', 'artistas', 'intérprete'];
+function parseFileTracks(text) {
+  const rows = parseTable(text);
+  const h = (rows[0] || []).map(x => x.trim().toLowerCase());
+  const col = names => names.map(c => h.indexOf(c)).find(i => i >= 0);
+  const ti = col(TITLE_COLS), ai = col(ARTIST_COLS);
+  if (ai === undefined || rows.length < 2) return parsePasted(text);
+  return rows.slice(1).map(r => ({ title: ti === undefined ? '' : String(r[ti] || '').trim(), artists: String(r[ai] || '').split(/\s*;\s*/).flatMap(splitArtists) })).filter(t => t.artists.length);
 }

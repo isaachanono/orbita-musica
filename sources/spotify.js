@@ -1,14 +1,14 @@
 // Export playlists to Spotify with Authorization Code + PKCE: runs fully in the browser, no client secret.
 const Spotify = (() => {
   const TOK = 'descubre:sp', CID = 'descubre:spClient';
-  const SCOPES = 'playlist-modify-private playlist-modify-public';
+  const SCOPES = 'playlist-modify-private playlist-modify-public playlist-read-private playlist-read-collaborative';
   const redirectUri = () => location.origin + location.pathname;
   const clientId = () => localStorage.getItem(CID) || (window.DESCUBRE_CONFIG || {}).spotifyClientId || '';
   const setClientId = id => { id = String(id || '').trim(); id ? localStorage.setItem(CID, id) : localStorage.removeItem(CID); localStorage.removeItem(TOK); };
   const b64 = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   const rand = n => b64(crypto.getRandomValues(new Uint8Array(n)));
   const getTok = () => { try { return JSON.parse(localStorage.getItem(TOK)); } catch { return null; } };
-  const saveTok = (r, old = {}) => localStorage.setItem(TOK, JSON.stringify({ access: r.access_token, refresh: r.refresh_token || old.refresh, exp: Date.now() + ((r.expires_in || 3600) - 60) * 1000 }));
+  const saveTok = (r, old = {}) => localStorage.setItem(TOK, JSON.stringify({ access: r.access_token, refresh: r.refresh_token || old.refresh, scope: r.scope || old.scope || '', exp: Date.now() + ((r.expires_in || 3600) - 60) * 1000 }));
 
   async function connect(pending = '') {
     const id = clientId(); if (!id) throw new Error('no-client');
@@ -79,9 +79,31 @@ const Spotify = (() => {
     }));
     const uris = [...new Set(res.filter(Boolean))], missing = p.tracks.filter((_, k) => !res[k]);
     if (!uris.length) throw new Error('No encontré ninguna de estas canciones en Spotify');
-    const pl = await api('/me/playlists', { method: 'POST', body: JSON.stringify({ name: p.name, description: 'Creada con Descubre', public: false }) });
+    const pl = await api('/me/playlists', { method: 'POST', body: JSON.stringify({ name: p.name, description: 'Creada con Órbita', public: false }) });
     for (let k = 0; k < uris.length; k += 100) await api(`/playlists/${pl.id}/items`, { method: 'POST', body: JSON.stringify({ uris: uris.slice(k, k + 100) }) });
     return { url: pl.external_urls?.spotify, added: uris.length, missing };
   }
-  return { clientId, setClientId, connect, handleRedirect, exportPlaylist, redirectUri, connected: () => !!getTok(), disconnect: () => localStorage.removeItem(TOK) };
+  // Full reads (no 100-track cap like the public embed). Needs the playlist-read-* scopes.
+  const tr = t => t && t.name && t.type !== 'episode' ? { title: t.name, artists: (t.artists || []).map(a => a.name).filter(Boolean) } : null;
+  async function pages(path, map) {
+    const out = []; let next = path;
+    while (next) {
+      const j = await api(next.replace('https://api.spotify.com/v1', ''));
+      (j.items || []).forEach(x => { const v = map(x); if (v) out.push(v); });
+      next = j.next;
+    }
+    return out;
+  }
+  async function readPlaylist(type, id) {
+    if (type === 'album') {
+      const a = await api(`/albums/${id}`);
+      const rest = a.tracks?.next ? await pages(a.tracks.next, tr) : [];
+      return { name: a.name, tracks: [...(a.tracks?.items || []).map(tr).filter(Boolean), ...rest] };
+    }
+    const p = await api(`/playlists/${id}?fields=name`);
+    return { name: p.name, tracks: await pages(`/playlists/${id}/items?limit=50`, x => tr(x.item || x.track)) };
+  }
+  const myPlaylists = () => pages('/me/playlists?limit=50', p => p && { id: p.id, name: p.name, n: p.items?.total ?? p.tracks?.total ?? 0, owner: p.owner?.display_name || '' });
+  const canRead = () => /playlist-read-private/.test(getTok()?.scope || '');
+  return { readPlaylist, myPlaylists, canRead, clientId, setClientId, connect, handleRedirect, exportPlaylist, redirectUri, connected: () => !!getTok(), disconnect: () => localStorage.removeItem(TOK) };
 })();

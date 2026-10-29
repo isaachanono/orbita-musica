@@ -1,4 +1,4 @@
-# Descubre — arquitectura
+# Órbita — arquitectura
 
 ```mermaid
 flowchart LR
@@ -16,8 +16,9 @@ flowchart LR
     MB["MusicBrainz\nclasificación"]
     LB["ListenBrainz\nartistas afines por sesiones"]
     LF["Last.fm\nsimilares + tags (con key)"]
-    IMP["Importadores\nSpotify · Apple · YouTube · Deezer · Shazam"]
-    SP["Spotify Web API\nexportar playlists (PKCE)"]
+    IMP["Importadores\nlinks públicos · archivos CSV/TSV · Shazam"]
+    SP["Spotify Web API (PKCE)\nleer playlists completas · exportar"]
+    YT["YouTube Data API\n(opcional, con key)"]
   end
   GW["Nodo gateway opcional\n(worker/ · Cloudflare Worker)\n/read · /mb · /lastfm · caché"]
   UI --> INT --> GEN --> RANK --> UI
@@ -28,6 +29,9 @@ flowchart LR
   ENR --> MB
   IMP --> PROF
   UI --> SP
+  SP --> IMP
+  YT --> IMP
+  UI -. "feedback · stats anónimas" .-> FB["Formspree / GitHub Issues\nGoatCounter (opcional)"]
   EN -. "r.jina.ai o GW" .-> GW
   IMP -. "r.jina.ai o GW" .-> GW
   MB -. "opcional" .-> GW
@@ -47,6 +51,15 @@ flowchart LR
 5. **Cola** (`nextItems`): entrega 9 resultados (25 en formato playlist) y rellena para que cada ♡ / ✓ / ↻ reemplace la tarjeta en su lugar.
 6. **Enriquecimiento** (`enrichTiles`): MusicBrainz agrega a cada artista géneros, país y año, con un límite de 1 petición por segundo y caché de 30 días.
 7. **Salida**: playlists locales, exportar a Spotify o copiar a TuneMyMusic / Soundiiz.
+
+## Importar playlists grandes
+Las páginas públicas (embed de Spotify, playlist de YouTube, Apple Music) solo muestran ~100 canciones; el importador lo detecta (`truncated`) y avisa. Para leer completas:
+- **Spotify Web API** (`Spotify.readPlaylist`, `Spotify.myPlaylists`): pagina `/me/playlists` y `/playlists/{id}/items` de 50 en 50. Requiere los scopes `playlist-read-*`; si el token no los tiene, el link público sigue como respaldo.
+- **Archivo** (`parseFileTracks`): CSV de Exportify / TuneMyMusic / Soundiiz o TSV UTF‑16 de Apple Music. Detecta columnas de título y artista por nombre.
+- **YouTube Data API** (`importYouTubeApi`): si `config.js → youtubeKey` existe, pagina `playlistItems`.
+
+## Feedback y medición
+`feedback.js` agrega el formulario de feedback (POST JSON a `config.js → feedbackUrl`, p. ej. Formspree; sin él abre un issue de GitHub prellenado), la nota de privacidad y estadísticas anónimas con GoatCounter (`config.js → goatcounter`): vistas por sección y eventos `buscar`, `importar-*`, `exportar-spotify`, `feedback`, `error`. Sin cookies.
 
 ## Nodo gateway (opcional)
 La app funciona sin servidor. El gateway (`worker/`) se agrega cuando hace falta:
