@@ -730,24 +730,28 @@ async function importShazam(url) {
     const res = await importLink(url);
     if (!['spotify', 'apple'].includes(res.service)) throw new Error('Usa el link de la playlist “My Shazam Tracks” de Spotify o Apple Music.');
     if (!res.tracks.length) throw new Error('No encontré canciones en esa playlist (¿es pública?).');
+    status('#shazamStatus', 'Buscando tus Shazams en el catálogo…');
+    const found = await findShazamTracks(res.tracks.filter(t => t.title));
     db.sources.filter(x => x.shazam).forEach(x => removeSource(x.id));
     const r = registerImport({ ...res, name: 'Mis Shazams · ' + SERVICES[res.service] }, url, { shazam: true });
-    db.prefs.shazamUrl = url; persist();
-    status('#shazamStatus', `Registré ${r.n} canciones shazameadas. Armando tu playlist…`);
-    const p = await buildShazamPlaylist(res.tracks.filter(t => t.title));
+    db.prefs.shazamUrl = url;
+    const p = saveShazamPlaylist(found);
     status('#shazamStatus', `Listo: ${r.n} Shazams de ${r.a} artistas y la playlist «${p.name}» con ${p.tracks.length} canciones.`);
     renderGustos(); renderExamples();
   } catch (e) { status('#shazamStatus', e.message || 'No pude leer tus Shazams'); }
   finally { $('#shazamBtn').disabled = false; }
 }
-async function buildShazamPlaylist(list) {
+async function findShazamTracks(list) {
   const base = s => K(String(s || '').replace(/\s*[([].*?[)\]]/g, '').replace(/\s+-\s+.*$/, ''));
   const found = (await pool(list, 5, async t => {
     const r = (await dz('/search', { q: `${t.artists[0]} ${t.title}`, limit: 8 })).data || [];
     const x = r.find(y => t.artists.some(a => K(a) === K(y.artist?.name)) && (base(y.title) === base(t.title) || base(y.title_short) === base(t.title)));
     return x ? toTrack({ track: x, artist: x.artist, why: 'Shazam' }) : null;
   })).filter(Boolean);
-  if (!found.length && list.length) throw new Error('No pude encontrar tus Shazams en el catálogo ahora mismo; tu playlist anterior quedó igual. Intenta de nuevo.');
+  if (!found.length && list.length) throw new Error('No pude encontrar tus Shazams en el catálogo ahora mismo; no cambié nada. Intenta de nuevo.');
+  return found;
+}
+function saveShazamPlaylist(found) {
   let p = db.playlists.find(x => x.id === db.prefs.shazamPl);
   if (!p) { p = createPlaylist('Mis Shazams'); db.prefs.shazamPl = p.id; }
   p.tracks = []; addToPlaylist(p, found);
