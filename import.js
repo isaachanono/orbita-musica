@@ -17,7 +17,7 @@ async function fetchPage(url) {
 }
 const pageTitle = md => ((md.match(/^Title:\s*(.+)$/m) || [])[1] || '').replace(/^\u200e/, '').replace(/\s*-\s*(Playlist|Album|Single|EP)?\s*-?\s*(Apple Music|Spotify|YouTube)\s*$/i, '').replace(/\s*-\s*(Playlist|Album)$/i, '').trim();
 
-const splitArtists = s => String(s || '').split(/\s*(?:,|&|\||\/| x | y | feat\.?| ft\.?| featuring | with )\s*/i).map(x => x.replace(/\s*[‘“«"].*$/, '').replace(/^[\s'"‘’“”«»]+|[\s'"‘’“”«»]+$/g, '').trim()).filter(Boolean);
+const splitArtists = s => String(s || '').split(/\s*(?:,|&|\|| x | y | feat\.?| ft\.?| featuring | with )\s*/i).map(x => x.replace(/\s*[‘“«"][^’”»"]*$/, '').replace(/^[\s'"‘’“”«»]+|[\s'"‘’“”«»]+$/g, '').trim()).filter(Boolean);
 
 async function importSpotify(type, id) {
   const md = await fetchPage(`https://open.spotify.com/embed/${type}/${id}`);
@@ -70,7 +70,7 @@ async function importYouTube(list) {
       return { title: r.replace(/\s+(ft|feat)\.?\s.*$/i, ''), artists: splitArtists(l) };
     }
     return chan && !LABEL.test(chan) ? { title, artists: [chan] } : null;
-  }).filter(t => t && t.artists.length && !t.artists.some(a => LABEL.test(a)));
+  }).filter(t => t && t.artists.length);
   return { service: 'youtube', name, tracks };
 }
 
