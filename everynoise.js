@@ -6563,7 +6563,7 @@ const enKey = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u03
 const enSlug = g => String(g).toLowerCase().replace(/[^a-z0-9]/g, '');
 const EN_BY = new Map(EN.map(e => [enKey(e.g), e]));
 const EN_ALIAS = { lofi: 'lo-fi beats', jazzhop: 'lo-fi jazzhop', americana: 'new americana', balkanbeat: 'balkan beats', bollywood: 'modern bollywood', corridos: 'corridos tumbados', garage: 'garage rock', psychedelic: 'psychedelic rock', sludge: 'sludge metal', modernclassical: 'british modern classical', minimal: 'minimal techno', regionalmexicano: 'regional mexicano femenil', idm: 'deep idm', rage: 'rage rap', postpunkrevival: 'uk post-punk revival' };
-function enFind(term) { const k = enKey(term); return EN_BY.get(k) || (EN_ALIAS[k] && EN_BY.get(enKey(EN_ALIAS[k]))) || null; }
+function enFind(term) { const k = enKey(term); return (EN_ALIAS[k] && EN_BY.get(enKey(EN_ALIAS[k]))) || EN_BY.get(k) || null; }
 function enNear(term, k = 8, skip = 0) { const e = enFind(term); return e && EN_SIMILAR[e.g] ? EN_SIMILAR[e.g].slice(skip, skip + k) : []; }
 let enMulti = null;
 function enMatchText(text) {
