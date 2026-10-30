@@ -658,7 +658,7 @@ function registerImport(res, url, extra = {}) {
   const keys = new Set(), tks = new Set();
   let n = 0;
   for (const t of res.tracks) {
-    t.artists.forEach((a, j) => { const k = addArtist(a, { id: t.ids?.[j], src: id }); if (k) keys.add(k); });
+    t.artists.forEach((a, j) => { const k = addArtist(a, { id: t.ids?.[j], src: id, w: t.w || 1 }); if (k) keys.add(k); });
     if (t.title && t.artists[0]) { const tk = TK(t.artists[0], t.title); knownTracks.add(tk); tks.add(tk); n++; }
   }
   db.sources.unshift({ id, url, service: res.service, name: res.name, tracks: n, artists: keys.size, keys: [...tks], date: Date.now(), ...(res.full ? { full: true } : {}), ...extra });
@@ -672,6 +672,7 @@ const fullerMsg = old => `Ya tienes «${old.name}» completa (${old.tracks} canc
 $('#importForm').onsubmit = async e => {
   e.preventDefault();
   const url = $('#importUrl').value.trim(); if (!url) return;
+  if (spotifyUserId(url)) { $('#importUrl').value = ''; $('#profUrl').value = url; $('#profPanel').scrollIntoView({ behavior: 'smooth' }); return importProfile(url); }
   const btn = $('#importBtn'); btn.disabled = true;
   status('#importStatus', 'Leyendo el link… (puede tardar unos segundos)');
   try {
@@ -760,6 +761,8 @@ function renderGustos() {
   $$('#sources [data-re]').forEach(b => b.onclick = () => refreshSource(b.dataset.re, b));
   renderGenres();
   $('#shazamUrl').value = db.prefs.shazamUrl || '';
+  if (!$('#profUrl').value) $('#profUrl').value = db.prefs.spProfile || '';
+  $('#profBtn').textContent = db.prefs.spProfile ? 'Actualizar perfil' : 'Leer mi perfil';
   $('#shazamBtn').textContent = db.prefs.shazamUrl ? 'Actualizar mis Shazams' : 'Importar mis Shazams';
   $('#artistChips').innerHTML = arts.slice(0, 300).map(e => `<span class="chip n"><a href="#descubrir" data-deep="${esc(e.name)}" title="Canciones de ${esc(e.name)} que no conoces">${esc(e.name)}</a> <em>${Math.round(e.n)}</em><button data-k="${esc(K(e.name))}" title="Olvidar">${icon('x')}</button></span>`).join('') || '<p class="empty" style="padding:6px 0">Sin artistas todavía.</p>';
   $$('#artistChips [data-deep]').forEach(a => a.onclick = e => { e.preventDefault(); deepSearch('más de ' + a.dataset.deep); });
@@ -769,6 +772,7 @@ function renderGustos() {
 async function refreshSource(id, btn) {
   const src = db.sources.find(x => x.id === id); if (!src?.url) return;
   if (src.shazam) return importShazam(src.url);
+  if (spotifyUserId(src.url)) return importProfile(db.prefs.spProfile || src.url);
   btn.disabled = true; toast('Actualizando «' + src.name + '»…');
   try {
     const res = await importLink(src.url);
@@ -777,6 +781,87 @@ async function refreshSource(id, btn) {
     removeSource(id); const r = registerImport(res, src.url); renderGustos(); toast(`Actualizada: ${r.n} canciones`);
   } catch (e) { btn.disabled = false; toast(e.message || 'No pude actualizarla'); }
 }
+
+/* Public Spotify profile: recently played artists weigh more; public playlists are listed to import one by one or all. */
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+async function importSpotifyPlaylist(id, name, profileId) {
+  const url = 'https://open.spotify.com/playlist/' + id;
+  const res = await importSpotify('playlist', id);
+  const old = db.sources.find(s => s.url === url);
+  if (keepsFullerImport(old, res)) return { n: old.tracks, kept: true };
+  if (old) removeSource(old.id);
+  return { ...registerImport({ ...res, name: res.name || name }, url, profileId ? { profile: profileId } : {}), truncated: res.truncated };
+}
+async function importProfile(input) {
+  const id = spotifyUserId(input);
+  if (!id) return status('#profStatus', 'Pega el link de tu perfil: open.spotify.com/user/…');
+  const btn = $('#profBtn'), box = $('#profLists');
+  btn.disabled = true; box.hidden = true;
+  status('#profStatus', 'Leyendo tu perfil de Spotify… (unos segundos)');
+  try {
+    const p = await readSpotifyProfile(id);
+    db.prefs.spProfile = p.url;
+    const rpUrl = p.url + '/recently-played-artists';
+    const old = db.sources.find(s => s.url === rpUrl); if (old) removeSource(old.id);
+    if (p.artists.length) registerImport({ service: 'spotify', name: `Artistas recientes · ${p.name}`, tracks: p.artists.map(name => ({ title: '', artists: [name], w: 3 })) }, rpUrl, { profile: p.id });
+    else persist();
+    Telemetry.ev('importar-perfil-spotify', p.artists.length ? 'con-recientes' : 'sin-recientes');
+    status('#profStatus', `«${p.name}»: ${p.artists.length ? `registré ${p.artists.length} artistas que escuchas últimamente` : 'tu perfil no muestra artistas recientes (actívalo en Spotify → Configuración → Social → «Artistas escuchados recientemente»)'} y encontré ${p.playlists.length} playlists públicas${p.total > p.playlists.length ? ` de ${p.total} (Spotify solo muestra las primeras)` : ''}. Elige cuáles importar.`);
+    renderProfileLists(p);
+    renderGustos();
+  } catch (e) { status('#profStatus', e.message || 'No pude leer ese perfil'); }
+  finally { btn.disabled = false; }
+}
+function renderProfileLists(p) {
+  const box = $('#profLists'); box.hidden = false; box.innerHTML = '';
+  if (!p.playlists.length) { box.innerHTML = '<p class="empty">No tiene playlists públicas. En Spotify, en cada playlist: ··· → Agregar al perfil.</p>'; return; }
+  const head = document.createElement('div'); head.className = 'actions left';
+  head.innerHTML = `<button class="btn primary sm" type="button">Importar todas (${p.playlists.length})</button>`;
+  box.appendChild(head);
+  const rows = p.playlists.map(pl => {
+    const url = 'https://open.spotify.com/playlist/' + pl.id;
+    const row = document.createElement('div'); row.className = 'src';
+    row.innerHTML = `<span class="badge">Spotify</span><div class="nm"><b><a href="${esc(url)}" target="_blank" rel="noopener" style="color:inherit">${esc(pl.name)}</a></b><span>${pl.owner ? 'de ' + esc(pl.owner) : 'playlist pública'}</span></div><button class="btn sm" type="button">${db.sources.some(s => s.url === url) ? 'Actualizar' : 'Importar'}</button>`;
+    const b = row.querySelector('button');
+    const run = async () => {
+      b.disabled = true; b.textContent = 'Leyendo…';
+      try { const r = await importSpotifyPlaylist(pl.id, pl.name, p.id); b.textContent = `✓ ${r.n} ${r.n === 1 ? 'canción' : 'canciones'}${r.kept ? ' (ya la tenías completa)' : r.truncated ? ' (primeras 100)' : ''}`; return 'ok'; }
+      catch (err) {
+        // Empty, unavailable or region-locked playlists won't work on retry.
+        if (/no regresó canciones/.test(err.message)) { b.textContent = 'Sin canciones visibles'; return 'empty'; }
+        b.disabled = false; b.textContent = 'Reintentar'; console.warn(pl.name, err); return 'fail';
+      }
+    };
+    b.onclick = async () => { await run(); renderGustos(); };
+    box.appendChild(row);
+    return { url, b, run };
+  });
+  const all = head.querySelector('button');
+  all.onclick = async () => {
+    all.disabled = true;
+    const todo = rows.filter(r => !db.sources.some(s => s.url === r.url));
+    let ok = 0, empty = 0, fail = 0;
+    const failed = [];
+    for (const [i, r] of todo.entries()) {
+      all.textContent = `Importando ${i + 1} de ${todo.length}…`;
+      const st = await r.run();
+      st === 'ok' ? ok++ : st === 'empty' ? empty++ : failed.push(r);
+      if (i < todo.length - 1) await sleep(1500);
+    }
+    // The free reader sometimes answers 429/503 under load; one slower retry recovers most of those.
+    for (const [i, r] of failed.entries()) {
+      all.textContent = `Reintentando ${i + 1} de ${failed.length}…`;
+      await sleep(4000);
+      const st = await r.run();
+      st === 'ok' ? ok++ : st === 'empty' ? empty++ : fail++;
+    }
+    renderGustos();
+    all.textContent = `✓ ${ok} importadas${empty ? ` · ${empty} sin canciones` : ''}${fail ? ` · ${fail} fallaron (reintenta)` : ''}`;
+    all.disabled = !fail;
+    Telemetry.ev('importar-perfil-playlists', String(ok));
+  };
+}
+$('#profForm').onsubmit = e => { e.preventDefault(); importProfile($('#profUrl').value || db.prefs.spProfile); };
 
 /* Shazam: the app syncs identified songs to a "My Shazam Tracks" playlist in Spotify or Apple Music; we read that playlist. */
 async function importShazam(url) {
