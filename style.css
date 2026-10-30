@@ -330,6 +330,7 @@ button.chip em{font-style:normal;opacity:.7;font-size:11px}
 .dim .ml:not(.hl){opacity:.06}
 .ml.hl{opacity:1;stroke-width:2.2}
 .map-info{position:absolute;top:14px;right:14px;width:290px;max-height:calc(100% - 28px);overflow:auto;background:var(--glass);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:var(--shadow)}
+.map-stage:has(~ .map-info:not([hidden])) .map-ctl{right:318px}
 .map-info h3{margin:0 0 4px;font-size:20px}
 .map-info .kind{font:600 11px var(--head);text-transform:uppercase;letter-spacing:.6px;color:var(--mut)}
 .map-info .facts{display:flex;flex-wrap:wrap;gap:5px;margin:10px 0}

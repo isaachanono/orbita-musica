@@ -510,11 +510,17 @@ async function artistDetail(o) {
 }
 async function albumDetail(o) {
   const al = await dz(`/album/${o.id}`);
+  let rows = al.tracks?.data || [];
+  while (rows.length < Math.min(al.nb_tracks || 0, 500)) {
+    const r = await dz(`/album/${o.id}/tracks`, { index: rows.length, limit: 100 }).catch(() => null);
+    if (!r?.data?.length) break;
+    rows = rows.concat(r.data);
+  }
   if (dStack.at(-1) !== o) return;
   renderDetail(o, { img: al.cover_big || al.cover_medium, kind: { single: 'Sencillo', ep: 'EP', compile: 'Compilación' }[al.record_type] || 'Álbum', title: al.title, artist: al.artist,
     sub: `<a href="#" data-artist="${esc(al.artist.id)}">${esc(al.artist.name)}</a>${al.release_date ? ` · ${esc(al.release_date.slice(0, 4))}` : ''} · ${al.nb_tracks} canciones`,
     facts: (al.genres?.data || []).map(g => `<button type="button" class="chip g" data-g="${esc(g.name)}">${esc(g.name)}</button>`).join(''),
-    open: openIn('album', al.artist.name, al.title, al.link), tracks: (al.tracks?.data || []).map(x => dzTrack(x, al, al.artist)) });
+    open: openIn('album', al.artist.name, al.title, al.link), tracks: [...new Map(rows.map(x => [x.id, x])).values()].map(x => dzTrack(x, al, al.artist)) });
 }
 function renderDetail(o, d) {
   const box = $('#detailBody'), name = d.artist.name, known = !!db.artists[K(name)];
