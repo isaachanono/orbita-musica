@@ -664,7 +664,8 @@ function registerImport(res, url, extra = {}) {
   return { n, a: keys.size };
 }
 // A public page only shows the first ~100 songs; don't replace a complete import (Spotify API or file) with that preview.
-const keepsFullerImport = (old, res) => !!(old?.full && res.truncated && old.tracks > res.tracks.filter(t => t.title).length);
+// Sources saved before `full` existed count as complete if they have more songs than any preview.
+const keepsFullerImport = (old, res) => !!(old && (old.full || old.tracks > EMBED_CAP) && res.truncated && old.tracks > res.tracks.filter(t => t.title).length);
 const fullerMsg = old => `Ya tienes «${old.name}» completa (${old.tracks} canciones); su página pública solo muestra las primeras. Para actualizarla usa «Elegir de mis playlists de Spotify» o sube el archivo.`;
 $('#importForm').onsubmit = async e => {
   e.preventDefault();
