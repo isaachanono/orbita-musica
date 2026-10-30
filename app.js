@@ -25,13 +25,15 @@ let knownTracks = new Set(db.tracks);
 let knownIds = new Set(db.ids.map(String));
 const persist = () => { db.tracks = [...knownTracks]; db.ids = [...knownIds]; try { store.set(DB_KEY, db); } catch { toast('No hay espacio para guardar más en este navegador'); } refreshCounts(); };
 
-function addArtist(name, { id = null, src = 'manual', w = 1 } = {}) {
+function addArtist(name, { id = null, src = 'manual', w = 1, via = null } = {}) {
   const k = K(name); if (!k) return null;
   const e = db.artists[k] || (db.artists[k] = { name, n: 0, srcs: [] });
   e.n += w;
   e.by = e.by || {}; e.by[src] = (e.by[src] || 0) + w;
   if (id) { e.id = id; knownIds.add(String(id)); }
   if (!e.srcs.includes(src)) e.srcs.push(src);
+  if (!e.first) e.first = Date.now();
+  if (via && !e.via && K(via) !== k) e.via = via;
   return k;
 }
 function markKnownTrack(artist, title) {
@@ -58,11 +60,11 @@ async function fromArtists(names, novelty, s) {
     const seed = r.data?.[0]; if (!seed) continue;
     s.seedIds.add(seed.id);
     const rel = (await dz(`/artist/${seed.id}/related`, { limit: 25 })).data || [];
-    const near = rel.map(a => ({ artist: a, why: `Cercano a ${seed.name}`, hop: 1 }));
+    const near = rel.map(a => ({ artist: a, why: `Cercano a ${seed.name}`, hop: 1, via: seed.name }));
     let far = [];
     if (novelty >= 35) {
       const via = shuffle(rel).slice(0, novelty >= 70 ? 5 : 3);
-      const res = await pool(via, 5, v => dz(`/artist/${v.id}/related`, { limit: 15 }).then(x => (x.data || []).map(a => ({ artist: a, why: `A 2 pasos de ${seed.name} (vía ${v.name})`, hop: 2 }))));
+      const res = await pool(via, 5, v => dz(`/artist/${v.id}/related`, { limit: 15 }).then(x => (x.data || []).map(a => ({ artist: a, why: `A 2 pasos de ${seed.name} (vía ${v.name})`, hop: 2, via: seed.name }))));
       far = res.flat().filter(Boolean).filter(c => !rel.some(r => r.id === c.artist.id));
     }
     if (novelty < 35) cands.push(...near);
@@ -98,7 +100,7 @@ async function fromLibs(s) {
     (await lfmSimilar(seed).catch(() => [])).forEach(n => { if (!names.has(K(n))) names.set(K(n), { n, src: 'Last.fm' }); });
     const pick = shuffle([...names.values()].slice(s.novelty >= 60 ? 5 : 0)).filter(x => !db.artists[K(x.n)] && !s.exclude.has(K(x.n)) && K(x.n) !== K(seed)).slice(0, 8);
     const found = await pool(pick, 4, async x => { const a = (await dz('/search/artist', { q: x.n, limit: 1 })).data?.[0]; return a && K(a.name) === K(x.n) ? { a, src: x.src } : null; });
-    return found.filter(Boolean).map(({ a, src }) => ({ artist: a, why: `${src === 'Last.fm' ? 'Similar a' : 'Se escucha junto a'} ${seed} · ${src}`, hop: 1, scene: 'lib:' + seed, taste: !s.intent.artists.length }));
+    return found.filter(Boolean).map(({ a, src }) => ({ artist: a, why: `${src === 'Last.fm' ? 'Similar a' : 'Se escucha junto a'} ${seed} · ${src}`, hop: 1, via: seed, scene: 'lib:' + seed, taste: !s.intent.artists.length }));
   });
   return res.filter(Boolean).flat();
 }
@@ -118,12 +120,12 @@ async function fromTaste(s) {
     const id = await resolveArtistId(e); if (!id || id < 0) return [];
     const rel = (await dz(`/artist/${id}/related`, { limit: 20 })).data || [];
     rel.forEach(a => { if (!s.tasteNear.has(a.id)) s.tasteNear.set(a.id, e.name); });
-    let out = rel.map(a => ({ artist: a, why: `${verb} ${e.name}`, hop: 1, taste: true }));
+    let out = rel.map(a => ({ artist: a, why: `${verb} ${e.name}`, hop: 1, taste: true, via: e.name }));
     if (s.novelty >= 60 && rel.length) {
       const v = shuffle(rel)[0];
       const far = (await dz(`/artist/${v.id}/related`, { limit: 15 })).data || [];
       far.forEach(a => { if (!s.tasteNear.has(a.id)) s.tasteNear.set(a.id, e.name); });
-      out = out.concat(far.map(a => ({ artist: a, why: `Más allá de ${e.name} (vía ${v.name})`, hop: 2, taste: true })));
+      out = out.concat(far.map(a => ({ artist: a, why: `Más allá de ${e.name} (vía ${v.name})`, hop: 2, taste: true, via: e.name })));
     }
     return out;
   });
@@ -221,7 +223,7 @@ const toTrack = it => {
   const t = it.track, a = it.artist;
   return { id: t.id, title: t.title_short || t.title, artist: a.name, artistId: a.id, album: t.album?.title, albumId: t.album?.id,
     cover: t.album?.cover_medium || t.album?.cover_big, coverBig: t.album?.cover_big || t.album?.cover_xl || t.album?.cover_medium,
-    preview: t.preview, link: t.link || `https://www.deezer.com/track/${t.id}`, why: it.why };
+    preview: t.preview, link: t.link || `https://www.deezer.com/track/${t.id}`, why: it.why, via: it.via };
 };
 
 /* ---------- discovery sessions: a queue that refills so every slot can be replaced ---------- */
@@ -378,7 +380,7 @@ function tile(it, fmt) {
     const act = b.dataset.a;
     if (act === 'add') { e.stopPropagation(); openMenu(b, [t]); return; }
     if (act === 'like') { like(t); toast('Guardada ♥ — aquí va otra opción'); }
-    if (act === 'known') { addArtist(a.name, { id: a.id, src: 'manual' }); markKnownTrack(a.name, t.title); persist(); toast(`Anotado: ya conoces a ${a.name}`); }
+    if (act === 'known') { addArtist(a.name, { id: a.id, src: 'manual', via: it.via }); markKnownTrack(a.name, t.title); persist(); toast(`Anotado: ya conoces a ${a.name}`); }
     replaceTile(el);
   };
   el._track = t;
@@ -410,7 +412,7 @@ async function replaceTile(el) {
 
 function like(t) {
   if (!db.liked.some(x => sameTrack(x, t))) db.liked.unshift({ ...t, added: Date.now() });
-  addArtist(t.artist, { id: t.artistId, src: 'liked', w: 3 });
+  addArtist(t.artist, { id: t.artistId, src: 'liked', w: 3, via: t.via });
   knownTracks.add(TK(t.artist, t.title));
   persist();
 }
@@ -810,12 +812,13 @@ function refreshCounts() {
 function route() {
   const h = location.hash.slice(1) || 'descubrir';
   const [view, id] = h.split('/');
-  const name = ['descubrir', 'gustos', 'guardados', 'playlists', 'playlist'].includes(view) ? view : 'descubrir';
+  const name = ['descubrir', 'gustos', 'guardados', 'playlists', 'playlist', 'mapa'].includes(view) ? view : 'descubrir';
   $$('.view').forEach(v => v.hidden = v.dataset.view !== name);
   $$('[data-nav]').forEach(a => a.classList.toggle('on', a.dataset.nav === h || (a.dataset.nav === 'playlists' && name === 'playlist')));
   if (name === 'gustos') renderGustos();
   if (name === 'guardados') renderSaved();
   if (name === 'playlists') renderPlaylists();
+  name === 'mapa' ? MapView.open() : MapView.close();
   if (name === 'playlist') { $('#plSuggestBox').hidden = true; $('#plStatus').hidden = true; renderPlaylist(id); }
   closeMenu();
   if (name !== 'descubrir') scrollTo(0, 0);

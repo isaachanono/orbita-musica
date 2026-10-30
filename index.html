@@ -26,6 +26,7 @@
   <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 2.5l2.2 6.3 6.3 2.2-6.3 2.2L12 19.5l-2.2-6.3L3.5 11l6.3-2.2z" fill="currentColor"/></symbol>
   <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M4 20c1.5-3.6 4.4-5.5 8-5.5s6.5 1.9 8 5.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
   <symbol id="i-list" viewBox="0 0 24 24"><path d="M4 6h11M4 11h11M4 16h7" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M18 9v8.2a2.3 2.3 0 1 1-1.6-2.2" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+  <symbol id="i-map" viewBox="0 0 24 24"><circle cx="6" cy="7" r="2.6" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="18" cy="6" r="2" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="17" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8.3 8.4l2.4 6M16.6 7.6l-3.4 6.8M8.6 6.8l7.4-.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
   <symbol id="i-note" viewBox="0 0 24 24"><path d="M9 18V6l11-2v12" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><circle cx="6.5" cy="18" r="2.5" fill="none" stroke="currentColor" stroke-width="1.9"/><circle cx="17.5" cy="16" r="2.5" fill="none" stroke="currentColor" stroke-width="1.9"/></symbol>
 </svg>
 
@@ -35,6 +36,7 @@
     <a href="#descubrir" data-nav="descubrir"><svg><use href="#i-spark"/></svg>Descubrir</a>
     <a href="#gustos" data-nav="gustos"><svg><use href="#i-user"/></svg>Mis gustos</a>
     <a href="#guardados" data-nav="guardados"><svg><use href="#i-heart"/></svg>Guardados</a>
+    <a href="#mapa" data-nav="mapa"><svg><use href="#i-map"/></svg>Mapa</a>
   </nav>
   <div class="nav-h"><a href="#playlists" data-nav="playlists">Playlists</a> <button class="icon-btn sm" id="newPl" title="Nueva playlist"><svg><use href="#i-plus"/></svg></button></div>
   <nav class="nav" id="sidePlaylists"></nav>
@@ -154,6 +156,30 @@
     <div id="savedList" class="tracks"></div>
   </section>
 
+  <!-- MAPA -->
+  <section class="view" data-view="mapa" hidden>
+    <h1 class="big">Tu mapa musical</h1>
+    <p class="lede">Tus artistas y géneros conectados. Cada artista o género nuevo que descubres aparece como un nodo y se une con lo que ya escuchas.</p>
+    <div class="map-bar">
+      <div class="seg" role="radiogroup" aria-label="Vista del mapa">
+        <label><input type="radio" name="mapMode" value="both" checked><span>Todo</span></label>
+        <label><input type="radio" name="mapMode" value="genres"><span>Géneros</span></label>
+        <label><input type="radio" name="mapMode" value="artists"><span>Artistas</span></label>
+      </div>
+      <span id="mapStatus" class="mut"></span>
+      <button class="btn ghost" id="mapFit" type="button">Centrar</button>
+    </div>
+    <div class="map-wrap">
+      <svg id="mapSvg" aria-label="Mapa musical"></svg>
+      <aside id="mapInfo" class="map-info" hidden></aside>
+      <div class="map-legend">
+        <span><i class="lg-genre"></i>Género</span><span><i class="lg-artist"></i>Artista</span><span><i class="lg-new"></i>Nuevo</span>
+        <span><b class="ln genre"></b>Pertenece</span><span><b class="ln en"></b>Géneros vecinos (Every Noise)</span><span><b class="ln rel"></b>Artistas relacionados</span><span><b class="ln via"></b>Lo descubriste por</span>
+      </div>
+      <p id="mapEmpty" class="empty map-empty" hidden>Importa tus playlists en Mis gustos o guarda canciones en Descubrir para ver tu mapa.</p>
+    </div>
+  </section>
+
   <!-- PLAYLISTS -->
   <section class="view" data-view="playlists" hidden>
     <h1 class="big">Playlists</h1>
@@ -192,6 +218,7 @@
   <a href="#descubrir" data-nav="descubrir"><svg><use href="#i-spark"/></svg>Descubrir</a>
   <a href="#gustos" data-nav="gustos"><svg><use href="#i-user"/></svg>Gustos</a>
   <a href="#guardados" data-nav="guardados"><svg><use href="#i-heart"/></svg>Guardados</a>
+  <a href="#mapa" data-nav="mapa"><svg><use href="#i-map"/></svg>Mapa</a>
   <a href="#playlists" data-nav="playlists"><svg><use href="#i-list"/></svg>Playlists</a>
 </nav>
 
@@ -209,6 +236,8 @@
 <script src="sources/spotify.js"></script>
 <script src="engine.js"></script>
 <script src="prompts.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+<script src="map.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

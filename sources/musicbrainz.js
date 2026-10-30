@@ -36,5 +36,7 @@ const MB = (() => {
     c[k] = { t: Date.now(), v }; save();
     return v;
   }
-  return { artist };
+  // Cached result without a network call: undefined = never looked up, null = not found.
+  const peek = name => { const c = load()[nk(name)]; return c ? c.v : undefined; };
+  return { artist, peek };
 })();
