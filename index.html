@@ -185,24 +185,32 @@
   <section class="view" data-view="mapa" hidden>
     <h1 class="big">Tu mapa musical</h1>
     <p class="lede">Tus artistas y géneros conectados. Cada artista o género nuevo que descubres aparece como un nodo y se une con lo que ya escuchas.</p>
-    <div class="map-bar">
-      <div class="seg" role="radiogroup" aria-label="Vista del mapa">
-        <label><input type="radio" name="mapMode" value="both" checked><span>Todo</span></label>
-        <label><input type="radio" name="mapMode" value="genres"><span>Géneros</span></label>
-        <label><input type="radio" name="mapMode" value="artists"><span>Artistas</span></label>
+    <div class="map-wrap" id="mapWrap">
+      <div class="map-stage">
+        <svg id="mapSvg" aria-label="Mapa musical"></svg>
+        <div class="map-top">
+          <div class="seg" role="radiogroup" aria-label="Vista del mapa">
+            <label><input type="radio" name="mapMode" value="both" checked><span>Todo</span></label>
+            <label><input type="radio" name="mapMode" value="genres"><span>Géneros</span></label>
+            <label><input type="radio" name="mapMode" value="artists"><span>Artistas</span></label>
+          </div>
+          <span id="mapStatus" class="mut"></span>
+        </div>
+        <div class="map-ctl">
+          <button class="icon-btn" id="mapZoomIn" type="button" title="Acercar">+</button>
+          <button class="icon-btn" id="mapZoomOut" type="button" title="Alejar">−</button>
+          <button class="icon-btn" id="mapFit" type="button" title="Centrar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="6"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg></button>
+          <button class="icon-btn" id="mapFull" type="button" title="Pantalla completa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+        </div>
+        <div class="map-legend">
+          <span><i class="lg-genre"></i>Género</span><span><i class="lg-artist"></i>Artista</span><span><i class="lg-new"></i>Nuevo</span>
+          <span><b class="ln genre"></b>Pertenece</span><span><b class="ln en"></b>Géneros vecinos (Every Noise)</span><span><b class="ln rel"></b>Artistas relacionados</span><span><b class="ln via"></b>Lo descubriste por</span>
+        </div>
+        <p id="mapEmpty" class="empty map-empty" hidden>Importa tus playlists en Mis gustos o guarda canciones en Descubrir para ver tu mapa.</p>
       </div>
-      <span id="mapStatus" class="mut"></span>
-      <button class="btn ghost" id="mapFit" type="button">Centrar</button>
-    </div>
-    <div class="map-wrap">
-      <svg id="mapSvg" aria-label="Mapa musical"></svg>
       <aside id="mapInfo" class="map-info" hidden></aside>
-      <div class="map-legend">
-        <span><i class="lg-genre"></i>Género</span><span><i class="lg-artist"></i>Artista</span><span><i class="lg-new"></i>Nuevo</span>
-        <span><b class="ln genre"></b>Pertenece</span><span><b class="ln en"></b>Géneros vecinos (Every Noise)</span><span><b class="ln rel"></b>Artistas relacionados</span><span><b class="ln via"></b>Lo descubriste por</span>
-      </div>
-      <p id="mapEmpty" class="empty map-empty" hidden>Importa tus playlists en Mis gustos o guarda canciones en Descubrir para ver tu mapa.</p>
     </div>
+    <div class="map-grip" id="mapGrip" role="separator" aria-label="Cambiar el tamaño del mapa" title="Arrastra para hacer el mapa más grande o más chico"><i></i></div>
   </section>
 
   <!-- PLAYLISTS -->
@@ -279,6 +287,7 @@
   <a href="#playlists" data-nav="playlists"><svg><use href="#i-list"/></svg>Playlists</a>
 </nav>
 
+<dialog id="detail" class="dlg detail"><div id="detailBody"></div></dialog>
 <div id="menu" class="menu" hidden></div>
 <div id="toast" class="toast" hidden></div>
 <audio id="player" preload="none"></audio>
