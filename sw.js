@@ -1,10 +1,10 @@
 // Órbita service worker: precaches the app shell so it opens offline (profile, saved songs and playlists live in
 // localStorage). Same-origin files are network-first (deploys show up on the next load), Google Fonts cache-first.
 // External APIs are not intercepted. Bump VERSION when the file list changes.
-const VERSION = 'orbita-v2';
+const VERSION = 'orbita-v3';
 const SHELL = ['./', 'index.html', 'style.css', 'config.js', 'feedback.js', 'sources/net.js', 'sources/deezer.js', 'sources/everynoise.js',
   'sources/musicbrainz.js', 'sources/listenbrainz.js', 'sources/lastfm.js', 'sources/import.js', 'sources/spotify.js', 'engine.js',
-  'prompts.js', 'vendor/d3.min.js', 'map.js', 'app.js', 'sync.js', 'icon.svg', 'manifest.webmanifest'];
+  'prompts.js', 'vendor/d3.min.js', 'map.js', 'app/util.js', 'app/session.js', 'app/ranking.js', 'app/player.js', 'app/ui.js', 'app/main.js', 'app/globals.js', 'sync.js', 'icon.svg', 'manifest.webmanifest'];
 const FONTS = /^https:\/\/fonts\.(googleapis|gstatic)\.com\//;
 
 self.addEventListener('install', e => e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())));

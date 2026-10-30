@@ -1,7 +1,7 @@
 // Optional profile sync through the gateway (worker /sync/<id>), without accounts: an anonymous recovery code the user keeps.
 // The code never leaves the browser. The server only sees id = SHA-256("orbita-id:" + code) and an AES-GCM blob
 // encrypted with SHA-256("orbita-key:" + code). Without gateway nothing changes: local profile + JSON backup.
-const Sync = (() => {
+window.Sync = (() => {
   const KEY = 'descubre:sync', BK = 'descubre:backupAt', NUDGE = 'descubre:nudgeAt', DAY = 864e5;
   const st = Object.assign({ code: '', at: 0, dirty: false, err: '' }, store.get(KEY, {}));
   const save = () => store.set(KEY, st);
