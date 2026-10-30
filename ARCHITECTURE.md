@@ -20,7 +20,7 @@ flowchart LR
     SP["Spotify Web API (PKCE)\nleer playlists completas · exportar"]
     YT["YouTube Data API\n(opcional, con key)"]
   end
-  GW["Nodo gateway opcional\n(worker/ · Cloudflare Worker)\n/read · /mb · /lastfm · caché"]
+  GW["Nodo gateway (por defecto)\n(worker/ · Cloudflare Worker)\n/read · /mb · /lb · /lastfm · caché"]
   UI --> INT --> GEN --> RANK --> UI
   RANK --> ENR --> UI
   PROF <--> UI
@@ -64,13 +64,30 @@ Las páginas públicas (embed de Spotify, playlist de YouTube, Apple Music) solo
 ## Feedback y medición
 `feedback.js` agrega el formulario de feedback (POST JSON a `config.js → feedbackUrl`, p. ej. Formspree; sin él abre un issue de GitHub prellenado), la nota de privacidad y estadísticas anónimas con GoatCounter (`config.js → goatcounter`): vistas por sección y eventos `buscar`, `importar-*`, `exportar-spotify`, `feedback`, `error`. Sin cookies.
 
-## Nodo gateway (opcional)
-La app funciona sin servidor. El gateway (`worker/`) se agrega cuando hace falta:
-- tener **API keys fuera del navegador**, como Last.fm (y a futuro Apple Music o reconocimiento de audio);
-- dejar de depender de `r.jina.ai` público, con caché en el edge (Every Noise 7 días, playlists 30 min);
-- enviar a MusicBrainz un User-Agent propio, con caché.
+## Nodo gateway (camino por defecto)
+Cuando `config.js → apiBase` tiene la URL del Worker, **todas** las llamadas a Every Noise, `r.jina.ai` (playlists y perfiles), MusicBrainz, ListenBrainz y Last.fm pasan por él (`sources/net.js → viaGateway`):
 
-Deploy: `cd worker && npx wrangler deploy && npx wrangler secret put LASTFM_KEY`. Después pon su URL en `config.js → apiBase`.
+| Ruta | Upstream | Caché edge |
+|---|---|---|
+| `GET /read?url=` | `r.jina.ai` (solo hosts permitidos) | Every Noise 7 días · playlists 30 min |
+| `GET /mb/<path>` | MusicBrainz WS/2 con User-Agent `Orbita/1.0 ( repo )` | 30 días |
+| `GET /lb/similar-artists?…` | ListenBrainz labs | 7 días |
+| `GET /lastfm?method=…` | Last.fm con el secret `LASTFM_KEY` (métodos permitidos) | 1 día |
+| `GET /health` | — | — |
+
+- **Keys:** solo como secrets de Wrangler (`LASTFM_KEY`, opcional `JINA_KEY`). El cliente únicamente conoce `apiBase`.
+- **Modo degradado:** si `apiBase` está vacío o el gateway no responde (error de red o respuesta sin cabecera `X-Gateway`), el cliente lo salta 5 minutos y llama directo a Every Noise vía `r.jina.ai`, MusicBrainz y ListenBrainz. Last.fm no tiene fallback (necesita la key). Un 5xx del upstream que llega con `X-Gateway` no marca el gateway como caído.
+- **Reintentos:** `fetchRetry` reintenta errores de red y 429/502/503/504 con backoff exponencial + jitter (respeta `Retry-After`). El Worker también reintenta una vez 429/503 del upstream.
+
+Deploy:
+```bash
+cd worker
+npx wrangler login
+npx wrangler deploy                      # imprime https://descubre-gateway.<tu-subdominio>.workers.dev
+npx wrangler secret put LASTFM_KEY       # opcional
+npx wrangler secret put JINA_KEY         # opcional, sube el límite de r.jina.ai
+```
+Después pon esa URL en `config.js → apiBase` y agrega tu dominio a `ALLOWED_ORIGINS` en `wrangler.toml` si no es `isaachanono.github.io`.
 
 ## Siguiente paso natural
 Para sincronizar el perfil entre dispositivos hay que guardarlo en una base del gateway (D1/KV) con login. Hoy vive en `localStorage`; el respaldo JSON es la forma de moverlo entre dispositivos.

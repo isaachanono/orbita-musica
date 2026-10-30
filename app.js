@@ -165,7 +165,7 @@ async function enArtists(genre) {
   if (cache[genre]) return cache[genre];
   const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 9000);
   try {
-    const r = await fetch(readerUrl('https://everynoise.com/engenremap-' + enSlug(genre) + '.html'), { signal: ctl.signal });
+    const r = await readPage('https://everynoise.com/engenremap-' + enSlug(genre) + '.html', { signal: ctl.signal });
     if (!r.ok) throw new Error('everynoise ' + r.status);
     const names = [...(await r.text()).matchAll(/^(.+?)\[»\]\(https:\/\/everynoise\.com\/artistprofile/gm)].map(m => m[1].trim()).filter(Boolean);
     const keys = Object.keys(cache); if (keys.length > 30) delete cache[keys[0]];
