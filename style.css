@@ -299,7 +299,7 @@ button.chip em{font-style:normal;opacity:.7;font-size:11px}
 .map-top>*{pointer-events:auto}
 .map-top #mapStatus{font-size:12px;background:var(--glass);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);padding:3px 9px;border-radius:8px}
 .map-top #mapStatus:empty{display:none}
-.map-ctl{position:absolute;right:12px;bottom:12px;display:flex;flex-direction:column;gap:6px}
+.map-ctl{position:absolute;right:12px;top:12px;display:flex;flex-direction:column;gap:6px}
 .map-ctl .icon-btn{width:38px;height:38px;border-radius:12px;background:var(--glass);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--line);font:600 18px var(--head);color:var(--txt)}
 .map-ctl .icon-btn svg{width:18px;height:18px}
 .map-ctl .icon-btn:hover{border-color:var(--acc);color:var(--acc)}
