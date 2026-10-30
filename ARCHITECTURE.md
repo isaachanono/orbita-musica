@@ -84,6 +84,10 @@ Cuando `config.js → apiBase` tiene la URL del Worker, **todas** las llamadas a
 - **Keys:** solo como secrets de Wrangler (`LASTFM_KEY`, opcional `JINA_KEY`). El cliente únicamente conoce `apiBase`.
 - **Modo degradado:** si `apiBase` está vacío o el gateway no responde (error de red o respuesta sin cabecera `X-Gateway`), el cliente lo salta 5 minutos y llama directo a Every Noise vía `r.jina.ai`, MusicBrainz y ListenBrainz. Last.fm no tiene fallback (necesita la key). Un 5xx del upstream que llega con `X-Gateway` no marca el gateway como caído.
 - **Reintentos:** `fetchRetry` reintenta errores de red y 429/502/503/504 con backoff exponencial + jitter (respeta `Retry-After`). El Worker también reintenta una vez 429/503 del upstream.
+- **Deezer:** `dz()` reintenta hasta 2 veces timeouts, errores de red y el error de cuota (code 4), con backoff exponencial.
+- **Fallos visibles:** todas las fuentes de `gather()` y las llamadas sueltas a MusicBrainz/ListenBrainz/Last.fm/Deezer usan `soft(fuente, promesa, fallback)` en vez de `.catch(() => [])`. El fallo se convierte en `{source, kind}` (`kind` = `http-503`, `timeout`, `red`, `error`; nunca URLs, nombres ni mensajes), se avisa con `console.warn` y se emite `source-fail`. `feedback.js` lo manda a GoatCounter como evento `evento-fuente-fallo-<fuente>` con título `<kind>`: uno por fuente+tipo por visita, máximo 15. Last.fm sin gateway (`sin-gateway`) no se reporta porque es lo esperado.
+- **Snapshot de Every Noise:** `data/everynoise/<letra>.json` tiene los 30 artistas principales de cada uno de los ~6,300 géneros, leídos de `engenremap-<slug>.html` (Every Noise está congelado desde 2023). Si leer la página falla, `enArtists()` lo reporta (`everynoise-scrape`) y usa el snapshot. Se carga solo el archivo de la letra del género, cuando hace falta.
+
 
 Deploy:
 ```bash

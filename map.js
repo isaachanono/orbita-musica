@@ -195,9 +195,9 @@ const MapView = (() => {
       const R = store.get(REL_KEY, {});
       for (const e of mapArtists()) {
         if (!open_) break;
-        if (!(e.id > 0)) await resolveArtistId(e).catch(() => null);
+        if (!(e.id > 0)) await soft('deezer', resolveArtistId(e), null);
         if (!(e.id > 0) || R[e.id]) continue;
-        const d = await dz(`/artist/${e.id}/related`, { limit: 30 }).catch(() => null);
+        const d = await soft('deezer', dz(`/artist/${e.id}/related`, { limit: 30 }), null);
         if (!d) continue;
         R[e.id] = (d.data || []).map(a => a.id);
         try { store.set(REL_KEY, R); } catch {}
