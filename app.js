@@ -25,7 +25,7 @@ let knownTracks = new Set(db.tracks);
 let knownIds = new Set(db.ids.map(String));
 const persist = () => { db.tracks = [...knownTracks]; db.ids = [...knownIds]; try { store.set(DB_KEY, db); } catch { toast('No hay espacio para guardar más en este navegador'); } refreshCounts(); };
 
-// Artists dropped by removeSource keep their first-seen date and "via" if a refresh re-adds them right away.
+// Artists dropped by removeSource keep their first-seen date and "via" only if a refresh re-adds them in the same tick.
 const retired = new Map();
 function addArtist(name, { id = null, src = 'manual', w = 1, via = null } = {}) {
   const k = K(name); if (!k) return null;
@@ -743,6 +743,7 @@ function removeSource(id) {
     if (e.by?.[id]) { e.n = Math.max(0, e.n - e.by[id]); delete e.by[id]; }
     if (!e.srcs.length) { retired.set(k, { first: e.first, ...(e.via ? { via: e.via } : {}) }); delete db.artists[k]; if (e.id) knownIds.delete(String(e.id)); }
   }
+  queueMicrotask(() => retired.clear());
   const gone = db.sources.find(s => s.id === id);
   db.sources = db.sources.filter(s => s.id !== id);
   if (gone?.keys) {
