@@ -17,9 +17,10 @@ const Telemetry = (() => {
     addEventListener('hashchange', view);
   }
   let errs = 0;
-  const err = m => { if (errs++ < 5) ev('error', String(m || '').slice(0, 150)); };
-  addEventListener('error', e => err(e.message));
-  addEventListener('unhandledrejection', e => err(e.reason?.message || e.reason));
+  // Only the error type: messages can contain playlist names or URLs.
+  const err = m => { if (errs++ < 5) ev('error', /^[A-Za-z]*Error$/.test(m) ? m : 'Error'); };
+  addEventListener('error', e => err(e.error?.name));
+  addEventListener('unhandledrejection', e => err(e.reason?.name));
 
   document.addEventListener('click', e => {
     const o = e.target.closest('[data-open]');
