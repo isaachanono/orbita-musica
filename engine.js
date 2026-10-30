@@ -82,6 +82,11 @@ function parseIntent(prompt) {
 
   const sortedGenres = [...GENRES].sort((a, b) => b.length - a.length);
   let rest = t;
+  // Specific Every Noise genres that contain a dictionary one ("chicago house" ⊃ "house") win over the generic match.
+  if (typeof enMatchText === 'function') for (const g of enMatchText(t)) {
+    const ng = norm(g);
+    if (!GENRES.includes(g) && rest.includes(ng) && GENRES.some(d => ng.includes(norm(d)))) { intent.genres.push(g); rest = rest.replace(ng, ' '); }
+  }
   for (const g of sortedGenres) {
     const ng = norm(g);
     if (rest.includes(ng)) { intent.genres.push(g); rest = rest.replace(ng, ' '); }
