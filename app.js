@@ -300,6 +300,7 @@ async function playTrack(t, list = null) {
   $('#pTitle').textContent = t.title; $('#pArtist').textContent = t.artist;
   $('#pArt').style.backgroundImage = t.cover ? `url('${cssUrl(t.cover)}')` : '';
   $('#pSide').innerHTML = links(`${t.artist} ${t.title}`);
+  playerActs(t);
   let src = t.preview || await freshPreview(t);
   if (!src) { toast('Esta canción no tiene preview'); return; }
   player.src = src;
@@ -313,6 +314,7 @@ const sameTrack = (a, b) => a && b && String(a.id) === String(b.id);
 function syncPlaying() {
   const on = !player.paused && now;
   $('#pPlay').innerHTML = icon(on ? 'pause' : 'play');
+  syncActs();
   document.body.classList.toggle('is-playing', !!on);
   $$('[data-tid]').forEach(el => {
     const p = on && String(el.dataset.tid) === String(now.id);
@@ -321,6 +323,31 @@ function syncPlaying() {
   });
 }
 player.onplay = player.onpause = syncPlaying;
+// Same actions as the cards, right from the 30 s preview. If the song is a card on screen, act through that card (so ♥ on an album opens "what to save" and the slot gets refilled).
+const tileOf = t => t && [...$$('#results .tile')].find(el => el._track && sameTrack(el._track, t));
+function playerActs(t) {
+  const box = $('#pActs'), b = (k, ic, title) => `<button class="icon-btn" data-p="${k}" title="${title}">${icon(ic)}</button>`;
+  box.innerHTML = b('like', 'heart', 'Me gusta') + b('known', 'known', 'Ya la conozco') + b('add', 'plus', 'Añadir a playlist') + b('swap', 'swap', 'Otra opción') + b('more', 'list', 'Ver más canciones y abrir en tu servicio');
+  box.hidden = false;
+  syncActs();
+  box.onclick = async e => {
+    const btn = e.target.closest('[data-p]'); if (!btn || !now) return;
+    const k = btn.dataset.p, cur = now, el = tileOf(cur);
+    if (k === 'add') { e.stopPropagation(); return openMenu(btn, [cur]); }
+    if (k === 'more') return openDetail(cur.albumId ? { type: 'album', id: cur.albumId, via: cur.via, trackId: cur.id } : { type: 'artist', id: cur.artistId, via: cur.via, trackId: cur.id });
+    if (el && k !== 'swap') { e.stopPropagation(); return el.querySelector(`.t-acts [data-a="${k}"]`).click(); }
+    if (k === 'like') { likeMany([cur]); toast(`Guardada ♥ ${cur.title}`); return syncActs(); }
+    if (k === 'known') { e.stopPropagation(); return askKnown(btn, { name: cur.artist, id: cur.artistId, title: cur.title, via: cur.via }); }
+    if (k === 'swap' && el) { const n = await replaceTile(el); if (n?._track) playTrack(n._track, currentTracks()); }
+  };
+}
+function syncActs() {
+  const box = $('#pActs'); if (box.hidden || !now) return;
+  const liked = db.liked.some(x => sameTrack(x, now));
+  box.querySelector('[data-p=like]').classList.toggle('on', liked);
+  box.querySelector('[data-p=like]').title = liked ? 'Ya está en Guardados' : 'Me gusta';
+  box.querySelector('[data-p=swap]').hidden = !tileOf(now);
+}
 player.ontimeupdate = () => { $('#pProg').style.width = (player.duration ? player.currentTime / player.duration * 100 : 0) + '%'; };
 player.onended = () => { if (queue.length && qi < queue.length - 1) playTrack(queue[++qi]); else syncPlaying(); };
 $('#pPlay').onclick = () => { if (!now) { const f = $('[data-tid] .pbtn, [data-tid] .th'); f ? f.click() : toast('Elige una canción'); return; } player.paused ? player.play() : player.pause(); };
@@ -431,7 +458,7 @@ async function replaceTile(el) {
   el.style.pointerEvents = 'none';
   const [nx] = await nextItems(s, 1);
   if (s !== session) return;
-  if (nx) { const n = tile(nx, s.fmt); el.replaceWith(n); syncPlaying(); enrichTiles(); }
+  if (nx) { const n = tile(nx, s.fmt); el.replaceWith(n); syncPlaying(); enrichTiles(); return n; }
   else { el.remove(); toast('No encontré más opciones con ese prompt; prueba otro'); }
 }
 
