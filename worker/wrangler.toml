@@ -6,4 +6,8 @@ compatibility_date = "2025-09-01"
 ALLOWED_ORIGINS = "https://isaachanono.github.io,http://localhost:8000,http://127.0.0.1:8000,http://localhost:8765"
 
 # Optional var: MB_USER_AGENT = "Orbita/1.0 ( contact )" overrides the MusicBrainz User-Agent.
+# Optional profile sync (encrypted blobs): npx wrangler kv namespace create PROFILES, then uncomment with the printed id.
+# [[kv_namespaces]]
+# binding = "PROFILES"
+# id = "<id>"
 # Secrets (never commit): npx wrangler secret put LASTFM_KEY   ·   optional: JINA_KEY

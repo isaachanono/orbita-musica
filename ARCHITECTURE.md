@@ -96,4 +96,11 @@ npx wrangler secret put JINA_KEY         # opcional, sube el límite de r.jina.a
 Después pon esa URL en `config.js → apiBase` y agrega tu dominio a `ALLOWED_ORIGINS` en `wrangler.toml` si no es `isaachanono.github.io`.
 
 ## Siguiente paso natural
-Para sincronizar el perfil entre dispositivos hay que guardarlo en una base del gateway (D1/KV) con login. Hoy vive en `localStorage`; el respaldo JSON es la forma de moverlo entre dispositivos.
+### Sincronización del perfil (opcional)
+El perfil vive en `localStorage` (`descubre:v2`). Con gateway y KV configurados, `sync.js` lo sincroniza sin cuentas:
+- **Código de recuperación anónimo** (120 bits, `XXXX-XXXX-…`, 24 caracteres) generado en el navegador. Es el único "login": se copia a otro dispositivo en Mis gustos → Respaldo.
+- El código **nunca sale del navegador**. El Worker recibe `id = SHA-256("orbita-id:" + código)` y un blob `{t, iv, data}` cifrado con AES-GCM usando `SHA-256("orbita-key:" + código)`. El servidor no puede leer perfiles; sin el código no hay recuperación.
+- Rutas `GET|PUT|DELETE /sync/<id>` sobre el KV `PROFILES` (máx. 4 MB, expira tras un año sin escrituras). Sin binding responde 501 y la UI ofrece solo el respaldo JSON.
+- Cada `persist()` marca cambios y sube a los 4 s. Al abrir, si la copia remota es más nueva que la última sincronización la aplica; si hubo cambios en ambos lados pregunta cuál conservar (last-write-wins, sin merge).
+- Activar: `npx wrangler kv namespace create PROFILES`, descomentar `[[kv_namespaces]]` en `worker/wrangler.toml` con el id y `npx wrangler deploy`.
+- El respaldo JSON sigue disponible. Si no hay sincronización y el perfil tiene 5+ artistas sin respaldo en 14 días, Mis gustos muestra un aviso y un toast (máximo uno por semana).
