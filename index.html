@@ -3,10 +3,20 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Descubre — música nueva con un prompt</title>
-<meta name="description" content="Escribe tu mood, actividad o un artista y descubre música realmente nueva, basada en tus gustos.">
+<title>Órbita — música nueva fuera del algoritmo</title>
+<meta name="description" content="Escribe tu mood, actividad o un artista y descubre música realmente nueva, basada en tus gustos. Sin cuenta, gratis.">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="og.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Órbita">
+<meta property="og:title" content="Órbita — música nueva fuera del algoritmo">
+<meta property="og:description" content="Dile tu mood o actividad y te recomienda artistas, canciones y playlists que todavía no conoces, a partir de tus gustos.">
+<meta property="og:url" content="https://isaachanono.github.io/descubre-musica/">
+<meta property="og:image" content="https://isaachanono.github.io/descubre-musica/og.png">
+<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#0d0e12">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%23c6f432'/><stop offset='.5' stop-color='%233fe0c5'/><stop offset='1' stop-color='%237c5cff'/></linearGradient></defs><circle cx='50' cy='50' r='48' fill='url(%23g)'/><circle cx='50' cy='50' r='9' fill='%230d0e12'/></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
@@ -28,10 +38,11 @@
   <symbol id="i-list" viewBox="0 0 24 24"><path d="M4 6h11M4 11h11M4 16h7" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M18 9v8.2a2.3 2.3 0 1 1-1.6-2.2" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
   <symbol id="i-map" viewBox="0 0 24 24"><circle cx="6" cy="7" r="2.6" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="18" cy="6" r="2" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="17" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8.3 8.4l2.4 6M16.6 7.6l-3.4 6.8M8.6 6.8l7.4-.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
   <symbol id="i-note" viewBox="0 0 24 24"><path d="M9 18V6l11-2v12" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><circle cx="6.5" cy="18" r="2.5" fill="none" stroke="currentColor" stroke-width="1.9"/><circle cx="17.5" cy="16" r="2.5" fill="none" stroke="currentColor" stroke-width="1.9"/></symbol>
+  <symbol id="i-orbit" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/><ellipse cx="12" cy="12" rx="10" ry="4.2" fill="none" stroke="currentColor" stroke-width="1.8" transform="rotate(-25 12 12)"/><circle cx="21" cy="7.8" r="1.7" fill="currentColor"/></symbol>
 </svg>
 
 <aside class="sidebar">
-  <a class="brand" href="#descubrir"><span class="logo"><svg><use href="#i-note"/></svg></span>Descubre</a>
+  <a class="brand" href="#descubrir"><span class="logo"><svg><use href="#i-orbit"/></svg></span>Órbita<span class="beta">beta</span></a>
   <nav class="nav">
     <a href="#descubrir" data-nav="descubrir"><svg><use href="#i-spark"/></svg>Descubrir</a>
     <a href="#gustos" data-nav="gustos"><svg><use href="#i-user"/></svg>Mis gustos</a>
@@ -40,6 +51,7 @@
   </nav>
   <div class="nav-h"><a href="#playlists" data-nav="playlists">Playlists</a> <button class="icon-btn sm" id="newPl" title="Nueva playlist"><svg><use href="#i-plus"/></svg></button></div>
   <nav class="nav" id="sidePlaylists"></nav>
+  <button class="fb-btn" type="button" data-open="#fbDialog">Feedback</button>
 </aside>
 
 <header class="player" id="playerBar">
@@ -101,7 +113,13 @@
         <input id="importUrl" type="url" placeholder="https://open.spotify.com/playlist/…  ·  music.apple.com  ·  youtube.com/playlist?list=…  ·  deezer.com/playlist/…" required>
         <button class="btn primary" id="importBtn">Importar</button>
       </form>
-      <p class="hint">Funciona con links públicos de Spotify, Apple Music, YouTube / YouTube Music y Deezer. Amazon Music y Tidal todavía no: para esos usa “Pegar lista”.</p>
+      <p class="hint">Funciona con links públicos de Spotify, Apple Music, YouTube / YouTube Music y Deezer. Ojo: en su página pública Spotify, YouTube y Apple Music solo muestran las primeras ~100 canciones. Para playlists más grandes usa una de estas dos opciones:</p>
+      <div class="actions left">
+        <button class="btn" id="spPick" type="button">Elegir de mis playlists de Spotify</button>
+        <label class="btn">Subir archivo de playlist (CSV / TXT)<input type="file" id="fileImport" accept=".csv,.tsv,.txt,text/csv,text/plain" hidden></label>
+      </div>
+      <p class="hint">El archivo puede venir de <a href="https://exportify.app/" target="_blank" rel="noopener">Exportify</a> (Spotify), <a href="https://www.tunemymusic.com/" target="_blank" rel="noopener">TuneMyMusic</a> o <a href="https://soundiiz.com/" target="_blank" rel="noopener">Soundiiz</a> (cualquier servicio, incluidos Amazon Music y Tidal), o de Apple Music en la Mac: Archivo → Biblioteca → Exportar playlist.</p>
+      <div id="spLists" class="rows sp-lists" hidden></div>
       <div id="importStatus" class="status" hidden></div>
       <details class="more">
         <summary>Pegar lista de canciones o artistas</summary>
@@ -212,7 +230,39 @@
       <div id="plSuggestions" class="tracks"></div>
     </div>
   </section>
+  <footer class="foot">
+    <span><b>Órbita</b> · beta · tus datos se quedan en tu navegador</span>
+    <span><a href="#" data-open="#fbDialog">Enviar feedback</a> · <a href="#" data-open="#privDialog">Privacidad</a> · <a href="https://github.com/isaachanono/descubre-musica" target="_blank" rel="noopener">Código</a></span>
+  </footer>
 </main>
+
+<dialog id="fbDialog" class="dlg">
+  <form id="fbForm" method="dialog">
+    <h3>¿Cómo te fue con Órbita?</h3>
+    <p class="hint">Esto es una beta: dime qué te recomendó bien, qué falló o qué te gustaría.</p>
+    <div class="rate">
+      <label><input type="radio" name="fbRate" value="Me encantó"><span>Me encantó</span></label>
+      <label><input type="radio" name="fbRate" value="Bien"><span>Bien</span></label>
+      <label><input type="radio" name="fbRate" value="Regular"><span>Regular</span></label>
+      <label><input type="radio" name="fbRate" value="No me sirvió"><span>No me sirvió</span></label>
+    </div>
+    <textarea id="fbMsg" rows="5" maxlength="4000" placeholder="¿Qué buscaste? ¿Te salió algo nuevo? ¿Algo no funcionó?" required></textarea>
+    <input id="fbEmail" type="email" placeholder="Tu correo (opcional, solo si quieres respuesta)">
+    <label class="chk"><input type="checkbox" id="fbCtx" checked> Incluir datos técnicos (sección, navegador, cuántos artistas tienes)</label>
+    <p id="fbStatus" class="mut"></p>
+    <div class="actions"><button class="btn ghost" value="cancel" formnovalidate>Cancelar</button><button class="btn primary" id="fbSend" value="send">Enviar</button></div>
+  </form>
+</dialog>
+<dialog id="privDialog" class="dlg">
+  <form method="dialog">
+    <h3>Privacidad</h3>
+    <p>Órbita no tiene cuentas ni servidor propio. Tus gustos, playlists y respaldos se guardan solo en tu navegador; si borras los datos del sitio, se borran.</p>
+    <p>Para buscar música, tu navegador consulta directamente servicios públicos: Deezer, MusicBrainz, ListenBrainz y Every Noise. Al importar un link, la página se lee con el lector público r.jina.ai.</p>
+    <p>Si conectas Spotify, el permiso se queda en tu navegador y solo se usa para leer tus playlists y crear las que exportes. Puedes desconectarlo en Mis gustos.</p>
+    <p>Estadísticas: si están activadas, contamos visitas y acciones (buscar, importar, errores) de forma anónima con GoatCounter, sin cookies ni datos personales. El feedback que envíes lo recibe quien mantiene la app.</p>
+    <div class="actions"><button class="btn primary">Entendido</button></div>
+  </form>
+</dialog>
 
 <nav class="tabbar">
   <a href="#descubrir" data-nav="descubrir"><svg><use href="#i-spark"/></svg>Descubrir</a>
@@ -226,6 +276,7 @@
 <div id="toast" class="toast" hidden></div>
 <audio id="player" preload="none"></audio>
 <script src="config.js"></script>
+<script src="feedback.js"></script>
 <script src="sources/net.js"></script>
 <script src="sources/deezer.js"></script>
 <script src="sources/everynoise.js"></script>

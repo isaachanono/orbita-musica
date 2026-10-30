@@ -453,7 +453,7 @@ async function discover() {
   history.replaceState(null, '', '?' + new URLSearchParams({ q: prompt, f: chosen, n: novelty }) + '#descubrir');
   const s = session = newSession({ intent, fmt, novelty, useTaste: (useTaste || intent.shazam) && !deep });
   const want = fmt === 'playlist' ? 25 : 9;
-  $('#go').disabled = true; $('#actions').hidden = true; $('#legend').hidden = true; $('#intent').hidden = true;
+  Telemetry.ev('buscar'); $('#go').disabled = true; $('#actions').hidden = true; $('#legend').hidden = true; $('#intent').hidden = true;
   status('#status', deep ? 'Buscando canciones que no tienes registradas de esos artistas…' : useTaste ? 'Explorando escenas y artistas cercanos a lo que escuchas…' : 'Explorando escenas y artistas relacionados…');
   fmt === 'playlist' ? ($('#results').innerHTML = '') : skeleton(9);
   try {
@@ -598,6 +598,7 @@ async function sendToSpotify(p) {
     status(st, 'Buscando tus canciones en Spotify…');
     const r = await Spotify.exportPlaylist(p, (d, n) => status(st, `Buscando en Spotify… ${d}/${n}`));
     $(st).hidden = false;
+    Telemetry.ev('exportar-spotify');
     $(st).innerHTML = `Listo: «${esc(p.name)}» ya está en tu Spotify con ${r.added} canciones${r.missing.length ? ` (no encontré ${r.missing.length}: ${esc(r.missing.slice(0, 3).map(t => t.title).join(', '))}${r.missing.length > 3 ? '…' : ''})` : ''}. ${safeHref(r.url) ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">Abrir en Spotify</a>` : ''}`;
   } catch (e) {
     if (e.message === 'auth') { status(st, 'Conectando con Spotify…'); Spotify.connect(p.id).catch(err => status(st, 'No se pudo conectar: ' + err.message)); return; }
@@ -608,7 +609,7 @@ function renderSpotify() {
   $('#spRedirect').textContent = Spotify.redirectUri();
   $('#spClient').value = Spotify.clientId();
   const on = Spotify.connected();
-  $('#spState').textContent = !Spotify.clientId() ? 'Sin configurar' : on ? 'Conectado ✓' : 'Configurado, sin conectar';
+  $('#spState').textContent = !Spotify.clientId() ? 'Sin configurar' : on && !Spotify.canRead() ? 'Conectado (vuelve a conectar para leer playlists)' : on ? 'Conectado ✓' : 'Configurado, sin conectar';
   $('#spDisconnect').hidden = !on;
 }
 $('#spForm').onsubmit = e => { e.preventDefault(); Spotify.setClientId($('#spClient').value); renderSpotify(); toast($('#spClient').value.trim() ? 'Client ID guardado' : 'Client ID borrado'); };
@@ -670,13 +671,56 @@ $('#importForm').onsubmit = async e => {
   try {
     const res = await importLink(url);
     if (!res.tracks.length) throw new Error('No encontré canciones en ese link.');
+    const old = db.sources.find(s => s.url === url && !s.shazam); if (old) removeSource(old.id);
     const r = registerImport(res, url);
-    status('#importStatus', `Listo: «${res.name}» — ${r.n} canciones de ${r.a} artistas registradas.`);
+    Telemetry.ev('importar-' + res.service, res.truncated ? 'incompleta' : '');
+    const how = res.service === 'spotify' ? 'Usa «Elegir de mis playlists de Spotify» para leerla completa.' : 'Para leerla completa, exporta la playlist a CSV y usa «Subir archivo».';
+    status('#importStatus', `Listo: «${res.name}» — ${r.n} canciones de ${r.a} artistas registradas.${res.truncated ? ` Ojo: ${SERVICES[res.service] || res.service} solo muestra las primeras canciones en su página pública; si tu playlist es más larga, faltan algunas. ${how}` : res.full ? ' (playlist completa)' : ''}`);
     $('#importUrl').value = '';
     renderGustos();
   } catch (err) { status('#importStatus', err.message || 'No pude importar ese link'); }
   finally { btn.disabled = false; }
 };
+$('#fileImport').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = '';
+  if (!f) return;
+  status('#importStatus', `Leyendo «${f.name}»…`);
+  try {
+    const tracks = parseFileTracks(await readFileText(f));
+    if (!tracks.length) throw new Error('No encontré columnas de canción y artista en ese archivo.');
+    const r = registerImport({ service: 'file', name: f.name.replace(/\.[^.]+$/, ''), tracks }, '');
+    Telemetry.ev('importar-archivo');
+    status('#importStatus', `Listo: «${f.name}» — ${r.n} canciones de ${r.a} artistas registradas.`);
+    renderGustos();
+  } catch (err) { status('#importStatus', err.message || 'No pude leer ese archivo'); }
+};
+async function pickSpotify() {
+  if (!Spotify.clientId()) { $('#spPanel').scrollIntoView({ behavior: 'smooth' }); return toast('Primero configura Spotify en «Conectar Spotify» (abajo)'); }
+  if (!Spotify.canRead()) return Spotify.connect('#pick').catch(e => toast(e.message));
+  const box = $('#spLists'); box.hidden = false; box.innerHTML = '<p class="empty">Leyendo tus playlists de Spotify…</p>';
+  try {
+    const lists = await Spotify.myPlaylists();
+    box.innerHTML = lists.length ? '' : '<p class="empty">No encontré playlists en tu cuenta.</p>';
+    lists.forEach(p => {
+      const url = 'https://open.spotify.com/playlist/' + p.id;
+      const row = document.createElement('div'); row.className = 'src';
+      row.innerHTML = `<span class="badge">Spotify</span><div class="nm"><b>${esc(p.name)}</b><span>${p.n} canciones${p.owner ? ' · ' + esc(p.owner) : ''}</span></div><button class="btn sm" type="button">${db.sources.some(s => s.url === url) ? 'Actualizar' : 'Importar'}</button>`;
+      const btn = row.querySelector('button');
+      btn.onclick = async () => {
+        btn.disabled = true; btn.textContent = 'Leyendo…';
+        try {
+          const res = await Spotify.readPlaylist('playlist', p.id);
+          const old = db.sources.find(s => s.url === url); if (old) removeSource(old.id);
+          const r = registerImport({ service: 'spotify', name: res.name || p.name, tracks: res.tracks }, url);
+          Telemetry.ev('importar-spotify-api');
+          btn.textContent = `✓ ${r.n} canciones`; renderGustos();
+        } catch (err) { btn.disabled = false; btn.textContent = 'Reintentar'; toast(err.message === 'auth' ? 'Vuelve a conectar Spotify' : err.message); }
+      };
+      box.appendChild(row);
+    });
+  } catch (err) { box.innerHTML = `<p class="empty">${esc(err.message === 'auth' ? 'Vuelve a conectar Spotify.' : 'No pude leer tus playlists: ' + err.message)}</p>`; }
+}
+$('#spPick').onclick = pickSpotify;
 $('#pasteBtn').onclick = () => {
   const txt = $('#pasteList').value; const tracks = parsePasted(txt);
   if (!tracks.length) return toast('Pega al menos una línea');
@@ -835,6 +879,7 @@ if (qp.get('q') && (location.hash === '' || location.hash === '#descubrir')) { $
 Spotify.handleRedirect().then(pid => {
   if (pid === null) return;
   toast('Spotify conectado');
+  if (pid === '#pick') { location.hash = '#gustos'; route(); renderSpotify(); pickSpotify(); return; }
   const p = db.playlists.find(x => x.id === pid);
   if (p) { location.hash = '#playlist/' + p.id; sendToSpotify(p); } else route();
 }).catch(e => toast(e.message));

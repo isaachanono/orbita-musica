@@ -27,7 +27,7 @@ code{font-size:12px;background:var(--fill2);padding:2px 7px;border-radius:6px;wo
 .sidebar{position:fixed;top:0;left:0;right:0;height:var(--top-h);display:flex;align-items:center;gap:22px;padding:0 28px;background:var(--glass);backdrop-filter:blur(18px) saturate(150%);-webkit-backdrop-filter:blur(18px) saturate(150%);border-bottom:1px solid var(--line);z-index:20}
 .brand{display:flex;align-items:center;gap:10px;font:700 21px var(--head);color:var(--txt);letter-spacing:-.6px}
 .logo{width:32px;height:32px;border-radius:50%;background:var(--grad);display:grid;place-items:center;color:#0d0e12}
-.logo svg{width:16px;height:16px}
+.logo svg{width:20px;height:20px}
 .nav{display:flex;gap:4px}
 .nav a{display:flex;align-items:center;gap:7px;padding:8px 14px;border-radius:999px;color:var(--mut);font:600 14px var(--head);white-space:nowrap}
 .nav a svg{width:16px;height:16px}
@@ -330,3 +330,25 @@ button.chip em{font-style:normal;opacity:.7;font-size:11px}
 }
 
 [hidden]{display:none!important}
+
+/* beta badge, feedback, footer, dialogs */
+.brand .beta{font:600 10px var(--head);letter-spacing:.6px;text-transform:uppercase;padding:3px 7px;border-radius:999px;background:var(--acc-soft);color:var(--acc);margin-left:-2px}
+.fb-btn{border:1px solid var(--line);background:transparent;color:var(--mut);padding:7px 14px;border-radius:999px;font:600 14px var(--head);cursor:pointer}
+.fb-btn:hover{color:var(--txt);border-color:var(--acc)}
+.btn.sm{padding:6px 12px;font-size:13px;border-radius:10px;white-space:nowrap}
+.sp-lists{margin-top:12px;max-height:420px;overflow:auto}
+.foot{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px 18px;margin:48px 0 0;padding:18px 0 8px;border-top:1px solid var(--line);color:var(--mut);font-size:13px}
+.foot b{color:var(--txt);font-family:var(--head)}
+.dlg{width:min(520px,calc(100vw - 32px));max-height:calc(100vh - 48px);overflow:auto;border:1px solid var(--line);border-radius:22px;background:var(--surf);color:var(--txt);padding:24px;box-shadow:var(--shadow)}
+.dlg::backdrop{background:rgba(5,6,9,.6);backdrop-filter:blur(4px)}
+.dlg h3{margin:0 0 6px;font:700 20px var(--head)}
+.dlg p{line-height:1.5}
+.dlg textarea,.dlg input[type=email]{display:block;width:100%;margin:10px 0 0;padding:11px 13px;border-radius:12px;border:1px solid var(--line);background:var(--fill)}
+.dlg .actions{justify-content:flex-end;margin:16px 0 0}
+.rate{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 4px}
+.rate input{position:absolute;opacity:0;pointer-events:none}
+.rate span{display:inline-block;padding:7px 13px;border-radius:999px;border:1px solid var(--line);cursor:pointer;font-size:14px}
+.rate input:checked+span{background:var(--acc);color:var(--acc-ink);border-color:transparent}
+.rate input:focus-visible+span{outline:2px solid var(--acc);outline-offset:2px}
+.chk{display:flex;gap:8px;align-items:center;margin:12px 0 0;font-size:13px;color:var(--mut)}
+@media (max-width:760px){.fb-btn{margin-left:auto;padding:6px 12px;font-size:13px}.foot{margin-bottom:150px}}
