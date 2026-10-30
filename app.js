@@ -663,6 +663,9 @@ function registerImport(res, url, extra = {}) {
   persist();
   return { n, a: keys.size };
 }
+// A public page only shows the first ~100 songs; don't replace a complete import (Spotify API or file) with that preview.
+const keepsFullerImport = (old, res) => !!(old && res.truncated && old.tracks > res.tracks.filter(t => t.title).length);
+const fullerMsg = old => `Ya tienes «${old.name}» completa (${old.tracks} canciones); su página pública solo muestra las primeras. Para actualizarla usa «Elegir de mis playlists de Spotify» o sube el archivo.`;
 $('#importForm').onsubmit = async e => {
   e.preventDefault();
   const url = $('#importUrl').value.trim(); if (!url) return;
@@ -671,7 +674,9 @@ $('#importForm').onsubmit = async e => {
   try {
     const res = await importLink(url);
     if (!res.tracks.length) throw new Error('No encontré canciones en ese link.');
-    const old = db.sources.find(s => s.url === url && !s.shazam); if (old) removeSource(old.id);
+    const old = db.sources.find(s => s.url === url && !s.shazam);
+    if (keepsFullerImport(old, res)) throw new Error(fullerMsg(old));
+    if (old) removeSource(old.id);
     const r = registerImport(res, url);
     Telemetry.ev('importar-' + res.service, res.truncated ? 'incompleta' : '');
     const how = res.service === 'spotify' ? 'Usa «Elegir de mis playlists de Spotify» para leerla completa.' : 'Para leerla completa, exporta la playlist a CSV y usa «Subir archivo».';
@@ -764,6 +769,7 @@ async function refreshSource(id, btn) {
   try {
     const res = await importLink(src.url);
     if (!res.tracks.length) throw new Error('No encontré canciones en ese link.');
+    if (keepsFullerImport(src, res)) throw new Error(fullerMsg(src));
     removeSource(id); const r = registerImport(res, src.url); renderGustos(); toast(`Actualizada: ${r.n} canciones`);
   } catch (e) { btn.disabled = false; toast(e.message || 'No pude actualizarla'); }
 }
