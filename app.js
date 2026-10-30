@@ -659,12 +659,12 @@ function registerImport(res, url, extra = {}) {
     t.artists.forEach((a, j) => { const k = addArtist(a, { id: t.ids?.[j], src: id }); if (k) keys.add(k); });
     if (t.title && t.artists[0]) { const tk = TK(t.artists[0], t.title); knownTracks.add(tk); tks.add(tk); n++; }
   }
-  db.sources.unshift({ id, url, service: res.service, name: res.name, tracks: n, artists: keys.size, keys: [...tks], date: Date.now(), ...extra });
+  db.sources.unshift({ id, url, service: res.service, name: res.name, tracks: n, artists: keys.size, keys: [...tks], date: Date.now(), ...(res.full ? { full: true } : {}), ...extra });
   persist();
   return { n, a: keys.size };
 }
 // A public page only shows the first ~100 songs; don't replace a complete import (Spotify API or file) with that preview.
-const keepsFullerImport = (old, res) => !!(old && res.truncated && old.tracks > res.tracks.filter(t => t.title).length);
+const keepsFullerImport = (old, res) => !!(old?.full && res.truncated && old.tracks > res.tracks.filter(t => t.title).length);
 const fullerMsg = old => `Ya tienes «${old.name}» completa (${old.tracks} canciones); su página pública solo muestra las primeras. Para actualizarla usa «Elegir de mis playlists de Spotify» o sube el archivo.`;
 $('#importForm').onsubmit = async e => {
   e.preventDefault();
@@ -693,7 +693,7 @@ $('#fileImport').onchange = async e => {
   try {
     const tracks = parseFileTracks(await readFileText(f));
     if (!tracks.length) throw new Error('No encontré columnas de canción y artista en ese archivo.');
-    const r = registerImport({ service: 'file', name: f.name.replace(/\.[^.]+$/, ''), tracks }, '');
+    const r = registerImport({ service: 'file', name: f.name.replace(/\.[^.]+$/, ''), tracks, full: true }, '');
     Telemetry.ev('importar-archivo');
     status('#importStatus', `Listo: «${f.name}» — ${r.n} canciones de ${r.a} artistas registradas.`);
     renderGustos();
@@ -716,7 +716,7 @@ async function pickSpotify() {
         try {
           const res = await Spotify.readPlaylist('playlist', p.id);
           const old = db.sources.find(s => s.url === url); if (old) removeSource(old.id);
-          const r = registerImport({ service: 'spotify', name: res.name || p.name, tracks: res.tracks }, url);
+          const r = registerImport({ service: 'spotify', name: res.name || p.name, tracks: res.tracks, full: true }, url);
           Telemetry.ev('importar-spotify-api');
           btn.textContent = `✓ ${r.n} canciones`; renderGustos();
         } catch (err) { btn.disabled = false; btn.textContent = 'Reintentar'; toast(err.message === 'auth' ? 'Vuelve a conectar Spotify' : err.message); }
