@@ -366,7 +366,7 @@ const status = (sel, msg) => { $(sel).hidden = !msg; $(sel).textContent = msg ||
 function openMenu(anchor, tracks) {
   const m = $('#menu');
   const pls = db.playlists;
-  m.innerHTML = `<div class="mh">Añadir a playlist</div><button data-new>${icon('plus')}Nueva playlist…</button>` + pls.map(p => `<button data-id="${p.id}">${icon('list')}${esc(p.name)}</button>`).join('');
+  m.innerHTML = `<div class="mh">Añadir a playlist</div><button data-new>${icon('plus')}Nueva playlist…</button>` + pls.map(p => `<button data-id="${esc(p.id)}">${icon('list')}${esc(p.name)}</button>`).join('');
   placeMenu(anchor, Math.min(320, 80 + pls.length * 36));
   m.onclick = e => {
     const b = e.target.closest('button'); if (!b) return;
@@ -405,7 +405,7 @@ function closeMenu() { $('#menu').hidden = true; document.removeEventListener('c
 /* ---------- discover view ---------- */
 function tile(it, fmt) {
   const t = toTrack(it), a = it.artist;
-  let cover = t.coverBig, title = t.title, sub = `<a href="https://www.deezer.com/artist/${a.id}" class="go" data-open="artist" title="Ver artista">${esc(a.name)}</a>`, q = `${a.name} ${t.title}`;
+  let cover = t.coverBig, title = t.title, sub = `<a href="https://www.deezer.com/artist/${esc(a.id)}" class="go" data-open="artist" title="Ver artista">${esc(a.name)}</a>`, q = `${a.name} ${t.title}`;
   if (fmt === 'artist') { cover = a.picture_big || a.picture_medium || `${API}/artist/${a.id}/image?size=big`; title = a.name; sub = `Escucha: ${esc(t.title)}`; q = a.name; }
   if (fmt === 'album') { title = t.album || t.title; q = `${a.name} ${t.album || ''}`; }
   const el = document.createElement('article');
@@ -505,7 +505,7 @@ async function artistDetail(o) {
   const seen = new Set(), albums = (als.data || []).sort((x, y) => (y.record_type === 'album') - (x.record_type === 'album') || String(y.release_date).localeCompare(String(x.release_date)))
     .filter(x => { const k = K(x.title.replace(/\s*[([].*$/, '')); return !seen.has(k) && seen.add(k); }).slice(0, 12);
   renderDetail(o, { img: a.picture_big || a.picture_medium, kind: 'Artista', title: a.name, artist: a, albums,
-    sub: `${(a.nb_fan || 0).toLocaleString('es-MX')} fans en Deezer${a.nb_album ? ` · ${a.nb_album} lanzamientos` : ''}`,
+    sub: `${(a.nb_fan || 0).toLocaleString('es-MX')} fans en Deezer${a.nb_album ? ` · ${esc(a.nb_album)} lanzamientos` : ''}`,
     open: openIn('artist', a.name, '', a.link || `https://www.deezer.com/artist/${a.id}`), tracks: (top.data || []).filter(x => x.readable !== false).map(x => dzTrack(x)) });
 }
 async function albumDetail(o) {
@@ -518,7 +518,7 @@ async function albumDetail(o) {
   }
   if (dStack.at(-1) !== o) return;
   renderDetail(o, { img: al.cover_big || al.cover_medium, kind: { single: 'Sencillo', ep: 'EP', compile: 'Compilación' }[al.record_type] || 'Álbum', title: al.title, artist: al.artist,
-    sub: `<a href="#" data-artist="${esc(al.artist.id)}">${esc(al.artist.name)}</a>${al.release_date ? ` · ${esc(al.release_date.slice(0, 4))}` : ''} · ${al.nb_tracks} canciones`,
+    sub: `<a href="#" data-artist="${esc(al.artist.id)}">${esc(al.artist.name)}</a>${al.release_date ? ` · ${esc(al.release_date.slice(0, 4))}` : ''} · ${esc(al.nb_tracks)} canciones`,
     facts: (al.genres?.data || []).map(g => `<button type="button" class="chip g" data-g="${esc(g.name)}">${esc(g.name)}</button>`).join(''),
     open: openIn('album', al.artist.name, al.title, al.link), tracks: [...new Map(rows.map(x => [x.id, x])).values()].map(x => dzTrack(x, al, al.artist)) });
 }
@@ -723,10 +723,10 @@ function collage(tracks, cls = '') {
   return `<div class="collage ${cls}">${covers.slice(0, 4).map(c => `<i style="background-image:url('${cssUrl(c)}')"></i>`).join('')}</div>`;
 }
 function renderSide() {
-  $('#sidePlaylists').innerHTML = db.playlists.map(p => { const c = p.tracks.find(t => t.cover)?.cover; return `<a href="#playlist/${p.id}" data-nav="playlist/${p.id}"><span class="pl-mini" style="${c ? `background-image:url('${cssUrl(c)}')` : ''}"></span>${esc(p.name)}</a>`; }).join('') || '<span class="hint" style="padding:0 10px">Aún no tienes playlists</span>';
+  $('#sidePlaylists').innerHTML = db.playlists.map(p => { const c = p.tracks.find(t => t.cover)?.cover; return `<a href="#playlist/${esc(p.id)}" data-nav="playlist/${esc(p.id)}"><span class="pl-mini" style="${c ? `background-image:url('${cssUrl(c)}')` : ''}"></span>${esc(p.name)}</a>`; }).join('') || '<span class="hint" style="padding:0 10px">Aún no tienes playlists</span>';
 }
 function renderPlaylists() {
-  $('#plGrid').innerHTML = db.playlists.map(p => `<div class="ptile" data-id="${p.id}">${collage(p.tracks)}<div class="meta"><b>${esc(p.name)}</b><span class="t-sub">${p.tracks.length} canciones</span></div></div>`).join('') || '<p class="empty">Crea una playlist o guarda una desde Descubrir.</p>';
+  $('#plGrid').innerHTML = db.playlists.map(p => `<div class="ptile" data-id="${esc(p.id)}">${collage(p.tracks)}<div class="meta"><b>${esc(p.name)}</b><span class="t-sub">${p.tracks.length} canciones</span></div></div>`).join('') || '<p class="empty">Crea una playlist o guarda una desde Descubrir.</p>';
   $$('#plGrid .ptile').forEach(el => el.onclick = () => location.hash = '#playlist/' + el.dataset.id);
 }
 let curPl = null;
@@ -871,7 +871,7 @@ async function pickSpotify() {
     lists.forEach(p => {
       const url = 'https://open.spotify.com/playlist/' + p.id;
       const row = document.createElement('div'); row.className = 'src';
-      row.innerHTML = `<span class="badge">Spotify</span><div class="nm"><b>${esc(p.name)}</b><span>${p.n} canciones${p.owner ? ' · ' + esc(p.owner) : ''}</span></div><button class="btn sm" type="button">${db.sources.some(s => s.url === url) ? 'Actualizar' : 'Importar'}</button>`;
+      row.innerHTML = `<span class="badge">Spotify</span><div class="nm"><b>${esc(p.name)}</b><span>${esc(p.n)} canciones${p.owner ? ' · ' + esc(p.owner) : ''}</span></div><button class="btn sm" type="button">${db.sources.some(s => s.url === url) ? 'Actualizar' : 'Importar'}</button>`;
       const btn = row.querySelector('button');
       btn.onclick = async () => {
         btn.disabled = true; btn.textContent = 'Leyendo…';
@@ -914,7 +914,7 @@ function removeSource(id) {
 function renderGustos() {
   const arts = tasteList();
   $('#stats').innerHTML = `<div class="stat"><b>${arts.length}</b><span>artistas que conoces</span></div><div class="stat"><b>${knownTracks.size}</b><span>canciones registradas</span></div><div class="stat"><b>${db.sources.length}</b><span>fuentes importadas</span></div><div class="stat"><b>${db.liked.length}</b><span>guardados</span></div>`;
-  $('#sources').innerHTML = db.sources.map(s => `<div class="src"><span class="badge">${esc(s.shazam ? 'Shazam' : SERVICES[s.service] || s.service)}</span><div class="nm"><b>${safeHref(s.url) ? `<a href="${esc(s.url)}" target="_blank" rel="noopener" style="color:inherit">${esc(s.name)}</a>` : esc(s.name)}</b><span>${s.tracks} canciones · ${s.artists} artistas · ${new Date(s.date).toLocaleDateString()}</span></div>${safeHref(s.url) ? `<button class="icon-btn" data-re="${s.id}" title="Actualizar (volver a leer el link)">${icon('swap')}</button>` : ''}<button class="icon-btn" data-src="${s.id}" title="Quitar esta fuente">${icon('x')}</button></div>`).join('') || '<p class="empty" style="padding:6px 0">Todavía no importas nada.</p>';
+  $('#sources').innerHTML = db.sources.map(s => `<div class="src"><span class="badge">${esc(s.shazam ? 'Shazam' : SERVICES[s.service] || s.service)}</span><div class="nm"><b>${safeHref(s.url) ? `<a href="${esc(s.url)}" target="_blank" rel="noopener" style="color:inherit">${esc(s.name)}</a>` : esc(s.name)}</b><span>${esc(s.tracks)} canciones · ${esc(s.artists)} artistas · ${new Date(s.date).toLocaleDateString()}</span></div>${safeHref(s.url) ? `<button class="icon-btn" data-re="${esc(s.id)}" title="Actualizar (volver a leer el link)">${icon('swap')}</button>` : ''}<button class="icon-btn" data-src="${esc(s.id)}" title="Quitar esta fuente">${icon('x')}</button></div>`).join('') || '<p class="empty" style="padding:6px 0">Todavía no importas nada.</p>';
   $$('#sources [data-src]').forEach(b => b.onclick = () => removeSource(b.dataset.src));
   $$('#sources [data-re]').forEach(b => b.onclick = () => refreshSource(b.dataset.re, b));
   renderGenres();
@@ -1136,3 +1136,10 @@ Spotify.handleRedirect().then(pid => {
   const p = db.playlists.find(x => x.id === pid);
   if (p) { location.hash = '#playlist/' + p.id; sendToSpotify(p); } else route();
 }).catch(e => toast(e.message));
+
+/* offline (PWA): assets come from sw.js; profile, saved songs and playlists live in localStorage */
+const offlineNote = () => { if (!navigator.onLine) toast('Sin conexión: puedes ver tus gustos, guardados y playlists. Descubrir necesita internet.'); };
+addEventListener('offline', offlineNote); offlineNote();
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || /^(localhost|127\.)/.test(location.hostname))) {
+  addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
