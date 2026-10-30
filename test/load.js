@@ -3,8 +3,8 @@
 import fs from 'node:fs';
 import vm from 'node:vm';
 
-export function loadClassic(files, names) {
-  const ctx = vm.createContext({ console });
+export function loadClassic(files, names, globals = {}) {
+  const ctx = vm.createContext({ console, ...globals });
   for (const f of files) vm.runInContext(fs.readFileSync(new URL('../' + f, import.meta.url), 'utf8'), ctx, { filename: f });
   return Object.fromEntries(names.map(n => [n, vm.runInContext(n, ctx)]));
 }
