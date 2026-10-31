@@ -2,6 +2,8 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://api.deezer.com https://gc.zgo.at; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https:; media-src https:; connect-src 'self' https://*.workers.dev https://r.jina.ai https://musicbrainz.org https://labs.api.listenbrainz.org https://api.spotify.com https://accounts.spotify.com https://www.googleapis.com https://formspree.io https://*.goatcounter.com; worker-src 'self'; manifest-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'">
+<meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Órbita — música nueva fuera del algoritmo</title>
 <meta name="description" content="Escribe tu mood, actividad o un artista y descubre música realmente nueva, basada en tus gustos. Sin cuenta, gratis.">
@@ -304,7 +306,7 @@
 <script src="sources/spotify.js"></script>
 <script src="engine.js"></script>
 <script src="prompts.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+<script src="vendor/d3.min.js"></script>
 <script src="map.js"></script>
 <script src="app.js"></script>
 </body>

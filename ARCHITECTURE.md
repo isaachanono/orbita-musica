@@ -61,6 +61,12 @@ Las páginas públicas (embed de Spotify, playlist de YouTube, Apple Music) solo
 ## Perfil público de Spotify (sin login)
 `readSpotifyProfile` lee con el mismo lector público `open.spotify.com/user/{id}`, `/playlists` y `/recently-played-artists`: nombre, playlists públicas y, si el usuario los muestra, ~25 artistas recientes (se registran con peso 3). Cada playlist se importa con `importSpotify`, así que sin OAuth sigue el tope de ~100 canciones. No es público: a quién sigue, top artistas, canciones guardadas, playlists privadas ni historial. No se usan las APIs internas del reproductor web.
 
+## PWA y seguridad
+- `sw.js` precachea el shell (HTML, CSS, JS, `vendor/d3.min.js`, ícono, manifest): la app abre sin conexión y muestra gustos, guardados y playlists desde `localStorage`. Archivos propios: red primero y caché si no hay red; Google Fonts: caché primero; las APIs externas no se interceptan. Sube `VERSION` en `sw.js` si cambia la lista de archivos.
+- D3 está vendorizado en `vendor/d3.min.js` (v7.9.0), sin CDN.
+- `index.html` declara una CSP: scripts solo propios + JSONP de Deezer + GoatCounter, sin `unsafe-inline` en scripts (los estilos inline sí, por los `style=` de portadas). `connect-src` lista cada API; **si `apiBase` no es un `*.workers.dev`, agrega su dominio a `connect-src`**. `referrer` = `strict-origin-when-cross-origin` (la key de YouTube restringida por dominio necesita el origen).
+- Todo texto externo (Deezer, MusicBrainz, Every Noise, Spotify, playlists importadas, respaldos restaurados, campos `why`) pasa por `esc()` antes de `innerHTML`; URLs por `safeHref`/`cssUrl`.
+
 ## Feedback y medición
 `feedback.js` agrega el formulario de feedback (POST JSON a `config.js → feedbackUrl`, p. ej. Formspree; sin él abre un issue de GitHub prellenado), la nota de privacidad y estadísticas anónimas con GoatCounter (`config.js → goatcounter`): vistas por sección y eventos `buscar`, `importar-*`, `exportar-spotify`, `feedback`, `error`. Sin cookies.
 
