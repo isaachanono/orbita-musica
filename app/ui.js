@@ -391,6 +391,8 @@ $('#plPlay').onclick = () => S.curPl?.tracks[0] && playTrack(S.curPl.tracks[0], 
 $('#plCopy').onclick = () => S.curPl && copyList(S.curPl.tracks, $('#plCopy'));
 $('#plExport').onclick = () => S.curPl && download(`${S.curPl.name}.txt`, S.curPl.tracks.map(t => `${t.artist} - ${t.title}`).join('\n'), 'text/plain');
 $('#plSpotify').onclick = () => S.curPl && sendToSpotify(S.curPl);
+export const SP_NOT_REGISTERED = 'Tu cuenta de Spotify todavía no está habilitada en Órbita. Mientras la app esté en modo desarrollo de Spotify, solo funcionan las cuentas que el administrador agregó en User Management. Puedes importar con links o archivos sin conectar.';
+export const spError = e => e?.message === 'not-registered' ? SP_NOT_REGISTERED : e?.message || String(e);
 export async function sendToSpotify(p) {
   if (!p?.tracks.length) { toast('La playlist está vacía'); return; }
   if (!Spotify.clientId()) { location.hash = '#gustos'; setTimeout(() => $('#spPanel').scrollIntoView({ behavior: 'smooth' }), 80); toast('Primero configura Spotify (una sola vez)'); return; }
@@ -403,7 +405,7 @@ export async function sendToSpotify(p) {
     $(st).innerHTML = `Listo: «${esc(p.name)}» ya está en tu Spotify con ${r.added} canciones${r.missing.length ? ` (no encontré ${r.missing.length}: ${esc(r.missing.slice(0, 3).map(t => t.title).join(', '))}${r.missing.length > 3 ? '…' : ''})` : ''}. ${safeHref(r.url) ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">Abrir en Spotify</a>` : ''}`;
   } catch (e) {
     if (e.message === 'auth') { status(st, 'Conectando con Spotify…'); Spotify.connect(p.id).catch(err => status(st, 'No se pudo conectar: ' + err.message)); return; }
-    status(st, 'No se pudo crear en Spotify: ' + e.message);
+    status(st, e.message === 'not-registered' ? SP_NOT_REGISTERED : 'No se pudo crear en Spotify: ' + e.message); renderSpotify();
   }
 }
 export function renderSpotify() {
@@ -415,7 +417,7 @@ export function renderSpotify() {
 }
 $('#spForm').onsubmit = e => { e.preventDefault(); Spotify.setClientId($('#spClient').value); renderSpotify(); toast($('#spClient').value.trim() ? 'Client ID guardado' : 'Client ID borrado'); };
 $('#spConnect').onclick = () => Spotify.connect('').catch(e => toast(e.message === 'no-client' ? 'Pega primero tu Client ID' : e.message));
-$('#spDisconnect').onclick = () => { Spotify.disconnect(); renderSpotify(); };
+$('#spDisconnect').onclick = () => { Spotify.disconnect(); renderSpotify(); toast('Spotify desconectado en este navegador. Para quitar el permiso por completo: spotify.com/account/apps'); };
 $('#plDelete').onclick = () => { if (S.curPl && confirm(`¿Eliminar «${S.curPl.name}»?`)) { db.playlists = db.playlists.filter(x => x !== S.curPl); persist(); renderSide(); location.hash = '#playlists'; } };
 $('#plSuggest').onclick = async () => {
   const p = S.curPl; if (!p) return;
@@ -526,7 +528,7 @@ export async function pickSpotify() {
       };
       box.appendChild(row);
     });
-  } catch (err) { box.innerHTML = `<p class="empty">${esc(err.message === 'auth' ? 'Vuelve a conectar Spotify.' : 'No pude leer tus playlists: ' + err.message)}</p>`; }
+  } catch (err) { box.innerHTML = `<p class="empty">${esc(err.message === 'auth' ? 'Vuelve a conectar Spotify.' : err.message === 'not-registered' ? SP_NOT_REGISTERED : 'No pude leer tus playlists: ' + err.message)}</p>`; renderSpotify(); }
 }
 $('#spPick').onclick = pickSpotify;
 $('#pasteBtn').onclick = () => {
@@ -773,7 +775,7 @@ Spotify.handleRedirect().then(pid => {
   if (pid === '#pick') { location.hash = '#gustos'; route(); renderSpotify(); pickSpotify(); return; }
   const p = db.playlists.find(x => x.id === pid);
   if (p) { location.hash = '#playlist/' + p.id; sendToSpotify(p); } else route();
-}).catch(e => toast(e.message));
+}).catch(e => { toast(spError(e)); renderSpotify(); });
 
 /* offline (PWA): assets come from sw.js; profile, saved songs and playlists live in localStorage */
 export const offlineNote = () => { if (!navigator.onLine) toast('Sin conexión: puedes ver tus gustos, guardados y playlists. Descubrir necesita internet.'); };
