@@ -16,6 +16,13 @@ const Telemetry = (() => {
     document.head.appendChild(s);
     addEventListener('hashchange', view);
   }
+  // Source failures (see reportFail in sources/net.js): one event per source+kind per visit, max 15.
+  const failed = new Set();
+  addEventListener('source-fail', e => {
+    const { source, kind } = e.detail || {}, k = `${source}:${kind}`;
+    if (!/^[a-z-]+$/.test(source || '') || !/^[a-z0-9-]+$/.test(kind || '') || failed.has(k) || failed.size >= 15) return;
+    failed.add(k); ev('fuente-fallo-' + source, kind);
+  });
   let errs = 0;
   // Only the error type: messages can contain playlist names or URLs.
   const err = m => { if (errs++ < 5) ev('error', /^[A-Za-z]*Error$/.test(m) ? m : 'Error'); };

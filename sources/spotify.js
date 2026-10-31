@@ -8,7 +8,7 @@ const Spotify = (() => {
   const b64 = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   const rand = n => b64(crypto.getRandomValues(new Uint8Array(n)));
   const getTok = () => { try { return JSON.parse(localStorage.getItem(TOK)); } catch { return null; } };
-  const saveTok = (r, old = {}) => localStorage.setItem(TOK, JSON.stringify({ access: r.access_token, refresh: r.refresh_token || old.refresh, scope: r.scope || old.scope || '', exp: Date.now() + ((r.expires_in || 3600) - 60) * 1000 }));
+  const saveTok = (r, old = {}) => localStorage.setItem(TOK, JSON.stringify({ access: r.access_token, refresh: r.refresh_token || old.refresh, scope: r.scope || old.scope || '', exp: Date.now() + (r.expires_in || 3600) * 1000 }));
 
   async function connect(pending = '') {
     const id = clientId(); if (!id) throw new Error('no-client');
@@ -22,7 +22,8 @@ const Spotify = (() => {
   async function token(body) {
     const r = await fetch('https://accounts.spotify.com/api/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ client_id: clientId(), ...body }) });
     const j = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(j.error_description || j.error || 'token');
+    // 400/401 (invalid_grant, revoked app…) mean the refresh token is dead; anything else may be transient.
+    if (!r.ok) throw Object.assign(new Error(j.error_description || j.error || 'token'), { fatal: r.status === 400 || r.status === 401 });
     return j;
   }
   // Returns null when this page load is not an OAuth callback, otherwise the pending playlist id ('' if none).
@@ -37,20 +38,38 @@ const Spotify = (() => {
     if (err) throw new Error(err === 'access_denied' ? 'Cancelaste el permiso de Spotify' : 'Spotify: ' + err);
     if (!auth || state !== auth.state) throw new Error('La respuesta de Spotify no coincide; intenta de nuevo');
     saveTok(await token({ grant_type: 'authorization_code', code, redirect_uri: redirectUri(), code_verifier: auth.verifier }));
+    await api('/me'); // fails with 'not-registered' for accounts outside User Management (development mode)
     return auth.pending || '';
   }
-  async function access() {
-    const t = getTok(); if (!t) return null;
-    if (Date.now() < t.exp) return t.access;
-    if (!t.refresh) return null;
-    try { const r = await token({ grant_type: 'refresh_token', refresh_token: t.refresh }); saveTok(r, t); return r.access_token; }
-    catch { localStorage.removeItem(TOK); return null; }
+  // Access tokens last ~1 h; refresh 60 s early. Spotify rotates refresh tokens, so concurrent callers
+  // (exportPlaylist runs 4 searches in parallel) must share one refresh or the losers get invalid_grant.
+  let refreshing = null;
+  function refresh(t) {
+    return refreshing ||= token({ grant_type: 'refresh_token', refresh_token: t.refresh })
+      .then(r => { saveTok(r, t); return r.access_token; })
+      .catch(e => { if (!e.fatal) throw e; localStorage.removeItem(TOK); return null; })
+      .finally(() => { refreshing = null; });
   }
-  async function api(path, opts = {}, retry = 2) {
+  async function access(force = false) {
+    const t = getTok(); if (!t) return null;
+    if (!force && Date.now() < t.exp - 60e3) return t.access;
+    if (!t.refresh) { localStorage.removeItem(TOK); return null; }
+    return refresh(t);
+  }
+  async function api(path, opts = {}, retry = 2, renewed = false) {
     const a = await access(); if (!a) throw new Error('auth');
     const r = await fetch('https://api.spotify.com/v1' + path, { ...opts, headers: { Authorization: 'Bearer ' + a, ...(opts.body ? { 'Content-Type': 'application/json' } : {}) } });
-    if (r.status === 429 && retry) { await new Promise(res => setTimeout(res, (+r.headers.get('Retry-After') || 2) * 1000)); return api(path, opts, retry - 1); }
-    if (r.status === 401) { localStorage.removeItem(TOK); throw new Error('auth'); }
+    if (r.status === 429 && retry) { await new Promise(res => setTimeout(res, (+r.headers.get('Retry-After') || 2) * 1000)); return api(path, opts, retry - 1, renewed); }
+    if (r.status === 401) {
+      if (!renewed && getTok()?.refresh && await access(true)) return api(path, opts, retry, true);
+      localStorage.removeItem(TOK); throw new Error('auth');
+    }
+    if (r.status === 403) {
+      const txt = await r.text().catch(() => '');
+      // Development-mode apps answer 403 "user may not be registered" for accounts not added in User Management.
+      if (/not (be )?registered|developer\.spotify\.com/i.test(txt)) { localStorage.removeItem(TOK); throw new Error('not-registered'); }
+      let m = 403; try { m = JSON.parse(txt).error?.message || m; } catch {} throw new Error('Spotify: ' + m);
+    }
     if (!r.ok) { let m = r.status; try { m = (await r.json()).error?.message || m; } catch {} throw new Error('Spotify: ' + m); }
     return r.status === 204 ? null : r.json();
   }
@@ -76,6 +95,8 @@ const Spotify = (() => {
     const hit = type === 'album' ? items.find(x => x.artists.some(a => nk(a.name) === nk(artist)) && nk(base(x.name)) === nk(base(album))) : items.find(x => nk(x.name) === nk(artist));
     return hit?.external_urls?.spotify || null;
   }
+  // Spotify has no token-revocation endpoint: logging out forgets everything locally; full revocation is at spotify.com/account/apps.
+  function disconnect() { localStorage.removeItem(TOK); sessionStorage.removeItem('sp_auth'); refreshing = null; }
   async function exportPlaylist(p, progress = () => {}) {
     const res = new Array(p.tracks.length); let i = 0, done = 0;
     await Promise.all(Array.from({ length: Math.min(4, p.tracks.length) }, async () => {
@@ -113,5 +134,5 @@ const Spotify = (() => {
   }
   const myPlaylists = () => pages('/me/playlists?limit=50', p => p && { id: p.id, name: p.name, n: p.items?.total ?? p.tracks?.total ?? 0, owner: p.owner?.display_name || '' });
   const canRead = () => /playlist-read-private/.test(getTok()?.scope || '');
-  return { findUrl, readPlaylist, myPlaylists, canRead, clientId, setClientId, connect, handleRedirect, exportPlaylist, redirectUri, connected: () => !!getTok(), disconnect: () => localStorage.removeItem(TOK) };
+  return { findUrl, readPlaylist, myPlaylists, canRead, clientId, setClientId, connect, handleRedirect, exportPlaylist, redirectUri, connected: () => !!getTok(), disconnect };
 })();
