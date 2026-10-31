@@ -12,8 +12,8 @@ Arquitectura y flujo: [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Publicar (GitHub Pages)
 
-1. **Settings → Pages** → Source: *Deploy from a branch* → Branch `main`, carpeta `/ (root)` → Save. Queda en `https://isaachanono.github.io/descubre-musica/`.
-2. **Spotify** (para conectar cuentas): en [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard) crea una app con Web API, Redirect URI `https://isaachanono.github.io/descubre-musica/` (y `http://127.0.0.1:8765/` para pruebas locales), y pon el Client ID en `config.js → spotifyClientId`. Detalles y límites en [Spotify: modo desarrollo y Extended Quota](#spotify-modo-desarrollo-y-extended-quota).
+1. **Settings → Pages** → Source: *Deploy from a branch* → Branch `main`, carpeta `/ (root)` → Save. Queda en `https://isaachanono.github.io/orbita-musica/`.
+2. **Spotify** (para conectar cuentas): en [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard) crea una app con Web API, Redirect URI `https://isaachanono.github.io/orbita-musica/` (y `http://127.0.0.1:8765/` para pruebas locales), y pon el Client ID en `config.js → spotifyClientId`. Detalles y límites en [Spotify: modo desarrollo y Extended Quota](#spotify-modo-desarrollo-y-extended-quota).
 3. **Feedback** (recomendado): crea un formulario en [formspree.io](https://formspree.io) y pon su URL en `config.js → feedbackUrl`. Sin eso, el botón de feedback abre un issue de GitHub (requiere cuenta de GitHub).
 4. **Estadísticas** (opcional): crea un sitio gratis en [goatcounter.com](https://www.goatcounter.com) y pon el código en `config.js → goatcounter`. Sin cookies ni datos personales.
 5. **YouTube completo** (opcional): API key de YouTube Data API v3 en Google Cloud, restringida a tu dominio, en `config.js → youtubeKey`.

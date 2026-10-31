@@ -2,7 +2,7 @@
 // Stats and the form endpoint stay off until they are set in config.js.
 const Telemetry = (() => {
   const C = window.DESCUBRE_CONFIG || {};
-  const REPO = 'https://github.com/isaachanono/descubre-musica';
+  const REPO = 'https://github.com/isaachanono/orbita-musica';
   const q = s => document.querySelector(s);
   const gc = o => { try { window.goatcounter?.count?.(o); } catch { /* stats are best-effort */ } };
   const view = () => gc({ path: location.pathname + (location.hash.split('/')[0] || '#descubrir') });
