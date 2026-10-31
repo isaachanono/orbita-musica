@@ -24,7 +24,7 @@ const db = Object.assign({ artists: {}, tracks: [], ids: [], liked: [], sources:
 let knownTracks = new Set(db.tracks);
 let knownIds = new Set(db.ids.map(String));
 let mapT;
-const persist = () => { db.tracks = [...knownTracks]; db.ids = [...knownIds]; try { store.set(DB_KEY, db); } catch { toast('No hay espacio para guardar más en este navegador'); } refreshCounts(); clearTimeout(mapT); mapT = setTimeout(() => MapView.refresh(), 300); };
+const persist = () => { db.tracks = [...knownTracks]; db.ids = [...knownIds]; try { store.set(DB_KEY, db); } catch { toast('No hay espacio para guardar más en este navegador'); } refreshCounts(); clearTimeout(mapT); mapT = setTimeout(() => MapView.refresh(), 300); if (typeof Sync !== 'undefined') Sync.changed(); };
 
 // Artists dropped by removeSource keep their first-seen date and "via" only if a refresh re-adds them in the same tick.
 const retired = new Map();
@@ -1084,6 +1084,11 @@ $('#classify').onclick = async () => {
 };
 function deepSearch(q) { $('#prompt').value = q; location.hash = '#descubrir'; discover(); }
 $('#deepTaste').onclick = () => deepSearch('canciones que no conozco de mis artistas');
+function applyProfile(d) {
+  if (!d || typeof d.artists !== 'object') throw new Error('perfil inválido');
+  Object.assign(db, d); knownTracks = new Set(db.tracks || []); knownIds = new Set((db.ids || []).map(String));
+  persist(); renderAll();
+}
 function download(name, text, type = 'application/json') {
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
@@ -1093,8 +1098,7 @@ $('#importData').onchange = async e => {
   try {
     const d = JSON.parse(await f.text());
     if (!d || typeof d.artists !== 'object') throw new Error();
-    Object.assign(db, d); knownTracks = new Set(db.tracks || []); knownIds = new Set((db.ids || []).map(String));
-    persist(); renderAll(); toast('Respaldo cargado');
+    applyProfile(d); toast('Respaldo cargado');
   } catch { toast('Ese archivo no es un respaldo válido'); }
   e.target.value = '';
 };

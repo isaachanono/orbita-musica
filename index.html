@@ -110,6 +110,7 @@
   <section class="view" data-view="gustos" hidden>
     <h1 class="big">Mis gustos</h1>
     <p class="lede">Pega links de tus playlists para que la app sepa qué ya conoces y qué te gusta. Todo se guarda solo en este navegador.</p>
+    <div class="nudge" id="backupNudge" hidden><span><b>Tus gustos solo viven en este navegador.</b> Descarga un respaldo para no perderlos si borras los datos del sitio o cambias de dispositivo.</span><button class="btn primary sm" type="button" data-backup>Descargar respaldo</button><button class="btn ghost sm" type="button" data-later>Después</button></div>
     <div class="panel" id="profPanel">
       <h3>Tu perfil de Spotify (sin conectar tu cuenta)</h3>
       <p class="hint">Pega el link de tu perfil público y leo tus artistas escuchados recientemente y tus playlists públicas. En Spotify: tu foto → <b>Perfil</b> → ··· → <b>Compartir</b> → <b>Copiar link del perfil</b>.</p>
@@ -166,13 +167,14 @@
       <p class="hint">Apple Music, YouTube Music, Amazon Music y Tidal: usa “Copiar lista” en la playlist y pégala en <a href="https://www.tunemymusic.com/transfer" target="_blank" rel="noopener">TuneMyMusic</a> o <a href="https://soundiiz.com/" target="_blank" rel="noopener">Soundiiz</a>.</p>
     </div>
     <div class="panel">
-      <h3>Respaldo</h3>
-      <p class="hint">Tus datos viven en este navegador. Descarga un respaldo para pasarlos a otro dispositivo.</p>
+      <h3>Respaldo y sincronización</h3>
+      <p class="hint" id="backupInfo">Tus datos viven solo en este navegador. Descarga un respaldo de vez en cuando para no perderlos.</p>
       <div class="actions left">
         <button class="btn" id="exportData" type="button">Descargar respaldo</button>
         <label class="btn">Cargar respaldo<input type="file" id="importData" accept="application/json" hidden></label>
         <button class="btn danger" id="wipe" type="button">Borrar todo</button>
       </div>
+      <div id="syncBox" class="sync-box"></div>
     </div>
   </section>
 
@@ -274,7 +276,7 @@
 <dialog id="privDialog" class="dlg">
   <form method="dialog">
     <h3>Privacidad</h3>
-    <p>Órbita no tiene cuentas ni servidor propio. Tus gustos, playlists y respaldos se guardan solo en tu navegador; si borras los datos del sitio, se borran.</p>
+    <p>Órbita no tiene cuentas. Tus gustos, playlists y respaldos se guardan en tu navegador; si borras los datos del sitio, se borran. Si activas la sincronización, se sube una copia cifrada que solo tu código de recuperación puede abrir; el servidor no ve su contenido y puedes borrarla al desactivarla.</p>
     <p>Para buscar música, tu navegador consulta directamente servicios públicos: Deezer, MusicBrainz, ListenBrainz y Every Noise. Al importar un link, la página se lee con el lector público r.jina.ai.</p>
     <p>Si conectas Spotify, el permiso se queda en tu navegador y solo se usa para leer tus playlists y crear las que exportes. Puedes desconectarlo en Mis gustos.</p>
     <p>Estadísticas: si están activadas, contamos visitas y acciones (buscar, importar, errores) de forma anónima con GoatCounter, sin cookies ni datos personales. El feedback que envíes lo recibe quien mantiene la app.</p>
@@ -309,5 +311,6 @@
 <script src="vendor/d3.min.js"></script>
 <script src="map.js"></script>
 <script src="app.js"></script>
+<script src="sync.js"></script>
 </body>
 </html>
