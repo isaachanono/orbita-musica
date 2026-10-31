@@ -10,7 +10,7 @@
 const READ_HOSTS = ['open.spotify.com', 'music.apple.com', 'youtube.com', 'music.youtube.com', 'everynoise.com'];
 const LASTFM_METHODS = new Set(['artist.getsimilar', 'artist.gettoptags', 'artist.getinfo', 'tag.gettopartists', 'tag.getsimilar', 'track.getsimilar']);
 const DAY = 86400, TTL = { everynoise: 7 * DAY, playlist: 1800, mb: 30 * DAY, lb: 7 * DAY, lastfm: DAY };
-const UA = 'Orbita/1.0 ( https://github.com/isaachanono/descubre-musica )';
+const UA = 'Orbita/1.0 ( https://github.com/isaachanono/orbita-musica )';
 const onHost = (h, d) => h === d || h.endsWith('.' + d);
 
 async function upstreamFetch(url, init, retries = 1) {
