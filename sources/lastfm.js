@@ -1,7 +1,7 @@
-// Last.fm similar artists and tags. Needs an API key, so it only runs through the gateway node (config.apiBase).
+// Last.fm similar artists and tags. The API key lives in the gateway (wrangler secret LASTFM_KEY), so there is no direct fallback.
 async function lfm(method, params) {
   if (!apiBase()) return null;
-  const r = await fetch(`${apiBase()}/lastfm?` + new URLSearchParams({ method, ...params }));
+  const r = await viaGateway('/lastfm?' + new URLSearchParams({ method, ...params }), null);
   if (!r.ok) throw new Error('lastfm ' + r.status);
   return r.json();
 }

@@ -5,13 +5,13 @@ const MB = (() => {
   const load = () => cache || (cache = (() => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } })());
   const save = () => { const c = load(), ks = Object.keys(c); ks.slice(0, Math.max(0, ks.length - MAX)).forEach(k => delete c[k]); try { localStorage.setItem(KEY, JSON.stringify(c)); } catch {} };
   const nk = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\p{L}\p{N}]+/gu, '');
-  const base = () => apiBase() ? apiBase() + '/mb' : 'https://musicbrainz.org/ws/2';
   function get(path) {
     const run = chain.then(async () => {
       for (let i = 0; i < 4; i++) {
         const wait = Math.max(0, last + 1100 + i * 1500 - Date.now()); if (wait) await new Promise(r => setTimeout(r, wait));
         last = Date.now();
-        const r = await fetch(base() + path + (path.includes('?') ? '&' : '?') + 'fmt=json');
+        const p = path + (path.includes('?') ? '&' : '?') + 'fmt=json';
+        const r = await viaGateway('/mb' + p, 'https://musicbrainz.org/ws/2' + p, {}, { tries: 1 });
         if (r.status === 503) continue;
         if (!r.ok) throw new Error('musicbrainz ' + r.status);
         return r.json();
