@@ -8,16 +8,22 @@ const MapView = (() => {
   const gColor = g => `hsl(${hue(g)} 72% 62%)`;
   const genresOf = e => (e.genres?.length ? e.genres : MB.peek(e.name)?.genres || []).slice(0, 3);
   const radius = n => n.type === 'genre' ? 11 + Math.sqrt(n.w) * 2.6 : 4 + Math.min(14, Math.sqrt(n.w) * 2);
+  // Your top artists plus what you discovered lately (saved, liked or "via"), so new finds always show up.
+  const mapArtists = () => {
+    const all = tasteList(), since = Date.now() - 30 * 864e5;
+    const recent = all.filter(e => e.first > since && (e.via || e.srcs.includes('liked') || e.srcs.includes('manual'))).sort((a, b) => b.first - a.first).slice(0, 30);
+    return [...new Set([...all.slice(0, 70), ...recent])];
+  };
   const linkKey = l => [l.source.id || l.source, l.target.id || l.target].sort().join('|');
 
   function build() {
-    const arts = tasteList().slice(0, 70);
+    const arts = mapArtists();
     const N = new Map(), L = new Map();
     const add = (id, o) => N.get(id) || N.set(id, { id, ...o }).get(id);
     const link = (a, b, kind, why) => { if (a === b || !N.has(a) || !N.has(b)) return; const k = [a, b].sort().join('|'); if (!L.has(k) || kind === 'via') L.set(k, { source: a, target: b, kind, why }); };
     const gw = {}, members = {};
     for (const e of arts) genresOf(e).forEach((g, i) => { gw[g] = (gw[g] || 0) + Math.min(8, e.n) * (i ? 0.5 : 1); (members[g] = members[g] || []).push(e.name); });
-    const genres = Object.keys(gw).sort((a, b) => gw[b] - gw[a]).slice(0, mode === 'genres' ? 60 : 30);
+    const genres = [...new Set([...Object.keys(gw).sort((a, b) => gw[b] - gw[a]).slice(0, mode === 'genres' ? 60 : 30), ...arts.slice(70).map(e => genresOf(e)[0]).filter(Boolean)])];
     const gset = new Set(genres);
     const fresh = e => e.first && Date.now() - e.first < 7 * 864e5;
     if (mode !== 'genres') for (const e of arts) {
@@ -51,7 +57,7 @@ const MapView = (() => {
   }
 
   function setup() {
-    svg = d3.select('#mapSvg');
+    svg = d3.select('#mapSvg'); wrap = $('#mapWrap');
     gAll = svg.append('g'); gLinks = gAll.append('g'); gNodes = gAll.append('g');
     zoom = d3.zoom().scaleExtent([0.25, 4]).on('zoom', ev => gAll.attr('transform', ev.transform));
     svg.call(zoom).on('dblclick.zoom', null);
@@ -67,7 +73,34 @@ const MapView = (() => {
       });
     $$('input[name=mapMode]').forEach(r => r.onchange = () => { mode = r.value; select(null); render(true); fitSoon(); });
     $('#mapFit').onclick = fit;
-    addEventListener('resize', () => open_ && size());
+    $('#mapZoomIn').onclick = () => svg.transition().duration(250).call(zoom.scaleBy, 1.35);
+    $('#mapZoomOut').onclick = () => svg.transition().duration(250).call(zoom.scaleBy, 1 / 1.35);
+    $('#mapFull').onclick = () => {
+      if (document.fullscreenElement) return document.exitFullscreen();
+      if (wrap.classList.contains('full')) return setFull(false);
+      wrap.requestFullscreen ? wrap.requestFullscreen().then(() => setFull(true), () => setFull(true)) : setFull(true);
+    };
+    document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && wrap.classList.contains('full')) setFull(false); });
+    addEventListener('keydown', e => { if (e.key === 'Escape' && wrap.classList.contains('full') && !document.fullscreenElement && !$('#detail').open) setFull(false); });
+    const grip = $('#mapGrip'), saved = +localStorage.getItem(H_KEY);
+    if (saved) wrap.style.setProperty('--map-h', saved + 'px');
+    grip.onpointerdown = e => {
+      e.preventDefault(); grip.setPointerCapture(e.pointerId);
+      const y0 = e.clientY, h0 = $('#mapSvg').getBoundingClientRect().height;
+      grip.onpointermove = ev => wrap.style.setProperty('--map-h', Math.round(Math.max(320, Math.min(innerHeight * 2, h0 + ev.clientY - y0))) + 'px');
+      grip.onpointerup = grip.onpointercancel = () => { grip.onpointermove = null; const h = parseInt(wrap.style.getPropertyValue('--map-h')); h && localStorage.setItem(H_KEY, h); };
+    };
+    grip.ondblclick = () => { wrap.style.removeProperty('--map-h'); localStorage.removeItem(H_KEY); };
+    new ResizeObserver(() => open_ && size()).observe($('#mapSvg'));
+  }
+  const H_KEY = 'descubre:mapH';
+  let wrap;
+  function setFull(on) {
+    wrap.classList.toggle('full', on);
+    $('#mapFull').title = on ? 'Salir de pantalla completa' : 'Pantalla completa';
+    $('#mapFull').innerHTML = on ? icon('x') : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>';
+    document.body.style.overflow = on ? 'hidden' : '';
+    setTimeout(fit, 300);
   }
   const size = () => { const r = $('#mapSvg').getBoundingClientRect(); svg.attr('viewBox', [-r.width / 2, -r.height / 2, r.width, r.height]); };
 
@@ -119,7 +152,7 @@ const MapView = (() => {
         <div class="facts">${genresOf(e).map(g => `<span class="chip g">${esc(g)}</span>`).join('')}${mb.country ? `<span class="chip">${flag(mb.country)} ${esc(mb.area || mb.country)}</span>` : ''}${mb.begin ? `<span class="chip">desde ${esc(mb.begin)}</span>` : ''}</div>
         <p><b>Peso en tus gustos:</b> ${Math.round(e.n)} · <b>fuentes:</b> ${e.srcs.length}${e.first ? ` · <b>agregado:</b> ${new Date(e.first).toLocaleDateString()}` : ''}</p>
         ${e.via ? `<p><b>Lo descubriste por:</b> ${esc(e.via)}</p>` : ''}${list(['rel'], 'Relacionado con')}${list(['genre'], 'Géneros')}
-        <div class="actions"><button class="btn primary" data-q="más de ${esc(e.name)}">Canciones que no conozco</button><button class="btn" data-q="artistas nuevos como ${esc(e.name)}">Artistas parecidos</button></div>`;
+        <div class="actions"><button class="btn primary" data-q="más de ${esc(e.name)}">Canciones que no conozco</button><button class="btn" data-q="artistas nuevos como ${esc(e.name)}">Artistas parecidos</button><button class="btn" data-detail>Ver canciones y álbumes</button></div>`;
     } else {
       box.innerHTML = `<button class="icon-btn x" data-x title="Cerrar">${icon('x')}</button><div class="kind">Género</div><h3>${esc(n.label)}</h3>
         <p><b>${n.members.length} de tus artistas:</b> ${n.members.slice(0, 10).map(esc).join(', ')}${n.members.length > 10 ? '…' : ''}</p>
@@ -130,7 +163,9 @@ const MapView = (() => {
     box.hidden = false;
     box.querySelector('[data-x]').onclick = () => select(null);
     box.querySelectorAll('[data-go]').forEach(a => a.onclick = ev => { ev.preventDefault(); select(a.dataset.go); });
-    box.querySelectorAll('[data-q]').forEach(b => b.onclick = ev => { ev.preventDefault(); deepSearch(b.dataset.q); });
+    box.querySelectorAll('[data-q]').forEach(b => b.onclick = ev => { ev.preventDefault(); if (wrap.classList.contains('full')) document.fullscreenElement ? document.exitFullscreen() : setFull(false); deepSearch(b.dataset.q); });
+    const det = box.querySelector('[data-detail]');
+    if (det) det.onclick = async () => { det.disabled = true; const id = await resolveArtistId(n.e).catch(() => -1); det.disabled = false; id > 0 ? openDetail({ type: 'artist', id }) : toast('No encontré a este artista en Deezer'); };
   }
 
   function fit() {
@@ -147,7 +182,7 @@ const MapView = (() => {
   async function enrich() {
     if (enriching) return; enriching = true;
     try {
-      const todo = tasteList().slice(0, 60).filter(e => !e.genres && MB.peek(e.name) === undefined);
+      const todo = mapArtists().filter(e => !e.genres && MB.peek(e.name) === undefined);
       let i = 0;
       for (const e of todo) {
         if (!open_) break;
@@ -158,7 +193,7 @@ const MapView = (() => {
         if (i % 3 === 0 || i === todo.length) { persist(); render(); }
       }
       const R = store.get(REL_KEY, {});
-      for (const e of tasteList().slice(0, 40)) {
+      for (const e of mapArtists()) {
         if (!open_) break;
         if (!(e.id > 0)) await resolveArtistId(e).catch(() => null);
         if (!(e.id > 0) || R[e.id]) continue;
@@ -180,7 +215,7 @@ const MapView = (() => {
       db.prefs.mapSeen = Date.now(); persist();
       enrich();
     },
-    close() { open_ = false; },
+    close() { open_ = false; if (wrap?.classList.contains('full')) document.fullscreenElement ? document.exitFullscreen() : setFull(false); },
     refresh() { if (open_) render(); },
   };
 })();

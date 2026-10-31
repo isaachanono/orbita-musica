@@ -4,10 +4,10 @@
 const SERVICES = { spotify: 'Spotify', apple: 'Apple Music', youtube: 'YouTube', deezer: 'Deezer', paste: 'Lista pegada', file: 'Archivo', manual: 'Manual', shazam: 'Shazam' };
 
 async function fetchPage(url) {
-  // Plain GET (no custom headers) so the browser does not need a CORS preflight.
+  // Plain GET (no custom headers) so the browser does not need a CORS preflight. readPage already backs off on 429/5xx.
   for (let i = 0; i < 2; i++) {
     try {
-      const r = await fetch(readerUrl(url));
+      const r = await readPage(url);
       const t = await r.text();
       if (r.ok && t.length > 300) return t;
     } catch { /* retry */ }

@@ -68,6 +68,14 @@ const Spotify = (() => {
     }
     return null;
   }
+  // Exact artist/album page on Spotify (only when the user connected their account; otherwise callers fall back to a search link).
+  async function findUrl(type, artist, album = '') {
+    if (!getTok()) return null;
+    const q = type === 'album' ? `album:${clean(album)} artist:${clean(artist)}` : `artist:${clean(artist)}`;
+    const items = (await api('/search?' + new URLSearchParams({ q, type, limit: 5 })))[type + 's']?.items || [];
+    const hit = type === 'album' ? items.find(x => x.artists.some(a => nk(a.name) === nk(artist)) && nk(base(x.name)) === nk(base(album))) : items.find(x => nk(x.name) === nk(artist));
+    return hit?.external_urls?.spotify || null;
+  }
   async function exportPlaylist(p, progress = () => {}) {
     const res = new Array(p.tracks.length); let i = 0, done = 0;
     await Promise.all(Array.from({ length: Math.min(4, p.tracks.length) }, async () => {
@@ -105,5 +113,5 @@ const Spotify = (() => {
   }
   const myPlaylists = () => pages('/me/playlists?limit=50', p => p && { id: p.id, name: p.name, n: p.items?.total ?? p.tracks?.total ?? 0, owner: p.owner?.display_name || '' });
   const canRead = () => /playlist-read-private/.test(getTok()?.scope || '');
-  return { readPlaylist, myPlaylists, canRead, clientId, setClientId, connect, handleRedirect, exportPlaylist, redirectUri, connected: () => !!getTok(), disconnect: () => localStorage.removeItem(TOK) };
+  return { findUrl, readPlaylist, myPlaylists, canRead, clientId, setClientId, connect, handleRedirect, exportPlaylist, redirectUri, connected: () => !!getTok(), disconnect: () => localStorage.removeItem(TOK) };
 })();
