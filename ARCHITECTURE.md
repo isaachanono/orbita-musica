@@ -58,6 +58,9 @@ Las páginas públicas (embed de Spotify, playlist de YouTube, Apple Music) solo
 - **Archivo** (`parseFileTracks`): CSV de Exportify / TuneMyMusic / Soundiiz o TSV UTF‑16 de Apple Music. Detecta columnas de título y artista por nombre.
 - **YouTube Data API** (`importYouTubeApi`): si `config.js → youtubeKey` existe, pagina `playlistItems`.
 
+## Perfil público de Spotify (sin login)
+`readSpotifyProfile` lee con el mismo lector público `open.spotify.com/user/{id}`, `/playlists` y `/recently-played-artists`: nombre, playlists públicas y, si el usuario los muestra, ~25 artistas recientes (se registran con peso 3). Cada playlist se importa con `importSpotify`, así que sin OAuth sigue el tope de ~100 canciones. No es público: a quién sigue, top artistas, canciones guardadas, playlists privadas ni historial. No se usan las APIs internas del reproductor web.
+
 ## Feedback y medición
 `feedback.js` agrega el formulario de feedback (POST JSON a `config.js → feedbackUrl`, p. ej. Formspree; sin él abre un issue de GitHub prellenado), la nota de privacidad y estadísticas anónimas con GoatCounter (`config.js → goatcounter`): vistas por sección y eventos `buscar`, `importar-*`, `exportar-spotify`, `feedback`, `error`. Sin cookies.
 

@@ -40,6 +40,39 @@ async function importSpotify(type, id) {
   return { service: 'spotify', name, tracks, truncated: type === 'playlist' && tracks.length >= EMBED_CAP };
 }
 
+// Public Spotify profile, no login: name, public playlists and (if the user shows them) recently played artists.
+// Following, top artists and liked songs are not public.
+function spotifyUserId(input) {
+  const s = String(input || '').trim();
+  const m = s.match(/open\.spotify\.com\/(?:intl-[a-z-]+\/)?user\/([^/?#\s]+)/i) || s.match(/^spotify:user:([^:\s]+)/i);
+  return m ? decodeURIComponent(m[1]) : null;
+}
+function mdSection(md, head) {
+  const i = md.search(head); if (i < 0) return '';
+  const s = md.slice(i), nl = s.indexOf('\n'), end = s.slice(nl).search(/^(#{1,2}\s|\* \* \*)/m);
+  return end < 0 ? s : s.slice(0, nl + end);
+}
+// Page body without Spotify's footer (its links include a "Top Song Lyrics" playlist).
+const mainMd = md => { const i = md.search(/^(\* \* \*|#{2,4}\s+Company)\s*$/m); return i < 0 ? md : md.slice(0, i); };
+async function readSpotifyProfile(id) {
+  const url = `https://open.spotify.com/user/${encodeURIComponent(id)}`;
+  const [home, pls, rp] = await Promise.all([fetchPage(url), fetchPage(url + '/playlists').catch(() => ''), fetchPage(url + '/recently-played-artists').catch(() => '')]);
+  const name = (home.match(/^Profile\s*\n+#\s+(.+)$/m) || [])[1];
+  if (!name) throw new Error('No encontré ese perfil. Revisa el link (Spotify → tu perfil → ··· → Compartir → Copiar link).');
+  const num = re => +((home.match(re) || [])[1] || '0').replace(/[,.\s]/g, '');
+  const plMd = mainMd(pls) || mdSection(home, /^##\s+\[Public Playlists\]/m);
+  const playlists = [], seen = new Set();
+  for (const b of plMd.split(/\n(?=\[[^\]\n]+\]\(https:\/\/open\.spotify\.com\/playlist\/)/)) {
+    const m = b.match(/^\[([^\]\n]+)\]\(https:\/\/open\.spotify\.com\/playlist\/([A-Za-z0-9]+)\)/);
+    if (!m || seen.has(m[2]) || m[2] === '37i9dQZF1CLcTo7UzL0sYK') continue;
+    seen.add(m[2]);
+    playlists.push({ id: m[2], name: m[1].trim(), owner: ((b.match(/^By (.+)$/m) || [])[1] || '').trim() });
+  }
+  const arMd = mainMd(rp) || mdSection(home, /^##\s+\[Recently played artists\]/m);
+  const artists = [...new Map([...arMd.matchAll(/\[([^\]\n]+)\]\(https:\/\/open\.spotify\.com\/artist\/([A-Za-z0-9]+)\)/g)].map(m => [m[2], m[1].trim()])).values()];
+  return { id, url, name: name.trim(), total: num(/([\d,.]+)\s+Public Playlists?/i), followers: num(/([\d,.]+)\s+Followers?/i), playlists, artists };
+}
+
 async function importApple(url) {
   const md = await fetchPage(url);
   const name = pageTitle(md) || 'Apple Music';

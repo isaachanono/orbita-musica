@@ -107,6 +107,13 @@
   <section class="view" data-view="gustos" hidden>
     <h1 class="big">Mis gustos</h1>
     <p class="lede">Pega links de tus playlists para que la app sepa qué ya conoces y qué te gusta. Todo se guarda solo en este navegador.</p>
+    <div class="panel" id="profPanel">
+      <h3>Tu perfil de Spotify (sin conectar tu cuenta)</h3>
+      <p class="hint">Pega el link de tu perfil público y leo tus artistas escuchados recientemente y tus playlists públicas. En Spotify: tu foto → <b>Perfil</b> → ··· → <b>Compartir</b> → <b>Copiar link del perfil</b>.</p>
+      <form id="profForm" class="row-form"><input id="profUrl" type="url" placeholder="https://open.spotify.com/user/…"><button class="btn primary" id="profBtn">Leer mi perfil</button></form>
+      <div id="profStatus" class="status" hidden></div>
+      <div id="profLists" class="rows sp-lists" hidden></div>
+    </div>
     <div class="panel">
       <h3>Importar playlist, álbum o artista</h3>
       <form id="importForm" class="row-form">

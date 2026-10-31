@@ -14,7 +14,7 @@ const MapView = (() => {
     const arts = tasteList().slice(0, 70);
     const N = new Map(), L = new Map();
     const add = (id, o) => N.get(id) || N.set(id, { id, ...o }).get(id);
-    const link = (a, b, kind, why) => { if (a === b || !N.has(a) || !N.has(b)) return; const k = [a, b].sort().join('|'); if (!L.has(k)) L.set(k, { source: a, target: b, kind, why }); };
+    const link = (a, b, kind, why) => { if (a === b || !N.has(a) || !N.has(b)) return; const k = [a, b].sort().join('|'); if (!L.has(k) || kind === 'via') L.set(k, { source: a, target: b, kind, why }); };
     const gw = {}, members = {};
     for (const e of arts) genresOf(e).forEach((g, i) => { gw[g] = (gw[g] || 0) + Math.min(8, e.n) * (i ? 0.5 : 1); (members[g] = members[g] || []).push(e.name); });
     const genres = Object.keys(gw).sort((a, b) => gw[b] - gw[a]).slice(0, mode === 'genres' ? 60 : 30);
