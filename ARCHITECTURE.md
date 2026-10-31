@@ -3,7 +3,7 @@
 ```mermaid
 flowchart LR
   subgraph Browser["Navegador (GitHub Pages, estático)"]
-    UI["UI (index.html · app.js)"]
+    UI["UI (index.html · app/*.js)"]
     INT["Intérprete de prompt (engine.js)"]
     GEN["Generadores de candidatos"]
     RANK["Filtro + ranking (novedad, ya conocido, diversidad)"]
@@ -37,6 +37,20 @@ flowchart LR
   MB -. "opcional" .-> GW
   LF --> GW
 ```
+
+## Módulos del cliente
+`sources/*.js`, `engine.js`, `prompts.js`, `feedback.js` y `map.js` siguen siendo scripts clásicos (globales, sin build). La app vive en módulos ES bajo `app/`, cargados con `<script type="module" src="app/main.js">`:
+
+| módulo | contenido |
+|---|---|
+| `app/util.js` | helpers sin estado: `$`, `esc`, `K`/`TK`, `safeHref`, `toast`, `links`… |
+| `app/session.js` | perfil persistente (`db`, `persist`, `addArtist`, `applyProfile`) y **`S`**, el único objeto con estado mutable de la sesión: `knownTracks`, `knownIds`, `session` (búsqueda actual), `now`/`queue`/`qi` (reproductor), `dStack` (detalle), `curPl`, `mapT` |
+| `app/ranking.js` | candidatos por fuente (`fromArtists`, `fromScenes`, `fromTaste`, `fromDeep`, `fromEveryNoise`, `fromLibs`), `rank`, `gather`, `refill`, `nextItems` |
+| `app/player.js` | previews, cola y acciones del reproductor |
+| `app/ui.js` | vistas, tarjetas, detalle, playlists, importaciones y arranque |
+| `app/main.js` | entrada; expone en `window` lo que usan `map.js` y `sync.js` |
+
+`session.js` no importa `ui.js`: la UI registra sus callbacks en `hooks` para evitar el ciclo. Tests: `npm test` (Vitest; `test/load.js` carga los scripts clásicos en un `node:vm`).
 
 ## Flujo de una búsqueda
 1. **Intención** (`parseIntent`): mood/actividad, géneros (diccionario + ~6,300 géneros de Every Noise), artistas semilla (`como X`), canciones nuevas de un artista (`más de X`, `de mis artistas`), `desde mis shazams`, formato, época y región.

@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "test": "vitest run",
-    "check": "for f in app.js map.js sync.js sw.js feedback.js engine.js prompts.js sources/*.js worker/index.js; do node --check \"$f\" || exit 1; done"
+    "check": "for f in app/*.js map.js sync.js sw.js feedback.js engine.js prompts.js sources/*.js worker/index.js; do node --check \"$f\" || exit 1; done"
   },
   "devDependencies": {
     "vitest": "^3.2.7"
