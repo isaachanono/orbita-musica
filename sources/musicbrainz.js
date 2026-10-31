@@ -16,7 +16,7 @@ const MB = (() => {
         if (!r.ok) throw new Error('musicbrainz ' + r.status);
         return r.json();
       }
-      throw new Error('musicbrainz busy');
+      throw new Error('musicbrainz 503 busy');
     });
     chain = run.catch(() => {});
     return run;

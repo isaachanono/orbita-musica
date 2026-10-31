@@ -98,9 +98,9 @@ async function fromLibs(s) {
     : s.useTaste ? shuffle((s.intent.shazam ? shazamArtists() : tasteList()).slice(0, 20)).slice(0, 2).map(e => e.name) : [];
   const res = await pool(seeds, 2, async seed => {
     const names = new Map();
-    const mb = await MB.artist(seed).catch(() => null);
-    if (mb?.mbid) (await lbSimilar(mb.mbid).catch(() => [])).forEach(n => names.set(K(n), { n, src: 'ListenBrainz' }));
-    (await lfmSimilar(seed).catch(() => [])).forEach(n => { if (!names.has(K(n))) names.set(K(n), { n, src: 'Last.fm' }); });
+    const mb = await soft('musicbrainz', MB.artist(seed), null);
+    if (mb?.mbid) (await soft('listenbrainz', lbSimilar(mb.mbid))).forEach(n => names.set(K(n), { n, src: 'ListenBrainz' }));
+    (await soft('lastfm', lfmSimilar(seed))).forEach(n => { if (!names.has(K(n))) names.set(K(n), { n, src: 'Last.fm' }); });
     const pick = shuffle([...names.values()].slice(s.novelty >= 60 ? 5 : 0)).filter(x => !db.artists[K(x.n)] && !s.exclude.has(K(x.n)) && K(x.n) !== K(seed)).slice(0, 8);
     const found = await pool(pick, 4, async x => { const a = (await dz('/search/artist', { q: x.n, limit: 1 })).data?.[0]; return a && K(a.name) === K(x.n) ? { a, src: x.src } : null; });
     return found.filter(Boolean).map(({ a, src }) => ({ artist: a, why: `${src === 'Last.fm' ? 'Similar a' : 'Se escucha junto a'} ${seed} · ${src}`, hop: 1, via: seed, scene: 'lib:' + seed, taste: !s.intent.artists.length }));
@@ -171,7 +171,19 @@ async function enArtists(genre) {
     const keys = Object.keys(cache); if (keys.length > 30) delete cache[keys[0]];
     cache[genre] = names; try { store.set('descubre:en', cache); } catch {}
     return names;
+  } catch (e) {
+    reportFail('everynoise-scrape', e);
+    const snap = await enSnapshot(genre);
+    if (snap?.length) return snap;
+    throw e;
   } finally { clearTimeout(tm); }
+}
+// Fallback: data/everynoise/<first letter>.json holds the top 30 artists of every genre (Every Noise has been frozen since 2023).
+const enShards = {};
+async function enSnapshot(genre) {
+  const c = /^[a-z]/.test(enSlug(genre)) ? enSlug(genre)[0] : '0';
+  enShards[c] ||= fetch(`data/everynoise/${c}.json`).then(r => r.ok ? r.json() : {}).catch(() => ({}));
+  return (await enShards[c])[genre] || null;
 }
 async function fromEveryNoise(scenes, s) {
   const gs = [...new Set(scenes.map(sc => enFind(sc.term)?.g).filter(Boolean))].slice(0, 2);
@@ -238,13 +250,13 @@ function newSession({ intent, fmt, novelty, useTaste, exclude = [] }) {
 async function gather(s) {
   const scenes = pickScenes(s.intent, s.novelty);
   if (!s.scenes.length) s.scenes = scenes;
-  if (s.intent.deep.length || s.intent.deepTaste) return fromDeep(s).catch(() => []);
+  if (s.intent.deep.length || s.intent.deepTaste) return soft('profundo', fromDeep(s));
   const [ac, sc, tc, ec, lc] = await Promise.all([
-    s.intent.artists.length ? fromArtists(s.intent.artists, s.novelty, s).catch(() => []) : [],
-    scenes.length ? fromScenes(scenes, s.intent).catch(() => []) : [],
-    s.useTaste ? fromTaste(s).catch(() => []) : [],
-    scenes.length ? fromEveryNoise(scenes, s).catch(() => []) : [],
-    fromLibs(s).catch(() => []),
+    s.intent.artists.length ? soft('artistas', fromArtists(s.intent.artists, s.novelty, s)) : [],
+    scenes.length ? soft('escenas', fromScenes(scenes, s.intent)) : [],
+    s.useTaste ? soft('gustos', fromTaste(s)) : [],
+    scenes.length ? soft('everynoise', fromEveryNoise(scenes, s)) : [],
+    soft('bibliotecas', fromLibs(s)),
   ]);
   return [...ac, ...sc, ...tc, ...ec, ...lc];
 }
@@ -289,7 +301,7 @@ const player = $('#player');
 let now = null, queue = [], qi = -1;
 async function freshPreview(t) {
   if (!t.id || isNaN(+t.id)) return null;
-  const x = await dz(`/track/${t.id}`).catch(() => null);
+  const x = await soft('deezer', dz(`/track/${t.id}`), null);
   if (x?.preview) { t.preview = x.preview; return x.preview; }
   return null;
 }
@@ -444,7 +456,7 @@ const flag = cc => /^[A-Z]{2}$/.test(cc || '') ? String.fromCodePoint(...[...cc]
 async function enrichTiles() {
   for (const el of $$('#results .tags:not([data-done])')) {
     el.dataset.done = '1';
-    const info = await MB.artist(el.dataset.artist).catch(() => null);
+    const info = await soft('musicbrainz', MB.artist(el.dataset.artist), null);
     if (!info || !el.isConnected) continue;
     el.innerHTML = [...info.genres.slice(0, 2).map(g => `<button type="button" class="tag" data-g="${esc(g)}" title="Buscar ${esc(g)}">${esc(g)}</button>`),
       info.country ? `<span class="tag mut" title="${esc(info.area || info.country)}">${flag(info.country)} ${esc(info.country)}</span>` : '',
@@ -512,7 +524,7 @@ async function albumDetail(o) {
   const al = await dz(`/album/${o.id}`);
   let rows = al.tracks?.data || [];
   while (rows.length < Math.min(al.nb_tracks || 0, 500)) {
-    const r = await dz(`/album/${o.id}/tracks`, { index: rows.length, limit: 100 }).catch(() => null);
+    const r = await soft('deezer', dz(`/album/${o.id}/tracks`, { index: rows.length, limit: 100 }), null);
     if (!r?.data?.length) break;
     rows = rows.concat(r.data);
   }
@@ -1072,7 +1084,7 @@ $('#classify').onclick = async () => {
   const btn = $('#classify'); btn.disabled = true; const w = {}; let i = 0, ok = 0;
   for (const e of top) {
     $('#classifyStatus').textContent = `${++i}/${top.length} · ${e.name}`;
-    const info = await MB.artist(e.name).catch(() => null);
+    const info = await soft('musicbrainz', MB.artist(e.name), null);
     if (!info) continue;
     ok++;
     info.genres.forEach((g, j) => { w[g] = (w[g] || 0) + Math.min(6, e.n) * (1 - j * 0.15); });
