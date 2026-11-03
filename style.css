@@ -208,6 +208,11 @@ input[type=range]{accent-color:var(--acc);width:120px}
 .hint b{color:var(--txt)}
 .more{margin-top:14px}
 .more summary{cursor:pointer;color:var(--acc);font-size:14px;font-weight:600}
+details.panel>summary{cursor:pointer;list-style:none}
+details.panel>summary::-webkit-details-marker{display:none}
+details.panel>summary::before{content:'▸ ';color:var(--mut)}
+details.panel[open]>summary::before{content:'▾ '}
+details.panel>summary h3{display:inline-block;margin:0}
 .more textarea{margin:10px 0}
 .stats{display:flex;gap:12px;margin:0 0 16px;flex-wrap:wrap}
 .stat{background:var(--surf);border:1px solid var(--line);border-radius:18px;padding:16px 18px;flex:1;min-width:140px}

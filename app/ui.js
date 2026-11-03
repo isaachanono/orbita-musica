@@ -315,7 +315,7 @@ $('#again').onclick = async () => {
   $('#again').disabled = false;
   if (s !== S.session) return;
   $('#results').innerHTML = '';
-  if (!items.length) { status('#status', 'Ya no encontré más con ese prompt. Prueba otro o sube “qué tan nuevo”.'); return; }
+  if (!items.length) { status('#status', 'Ya no encontré más con ese prompt. Prueba otro o sube “qué tan diferente”.'); return; }
   items.forEach(i => $('#results').appendChild(tile(i, s.fmt))); syncPlaying(); enrichTiles();
   scrollTo({ top: $('#intent').offsetTop - 80, behavior: 'smooth' });
 };
@@ -396,7 +396,7 @@ export const SP_NOT_REGISTERED = 'Tu cuenta de Spotify todavía no está habilit
 export const spError = e => e?.message === 'not-registered' ? SP_NOT_REGISTERED : e?.message || String(e);
 export async function sendToSpotify(p) {
   if (!p?.tracks.length) { toast('La playlist está vacía'); return; }
-  if (!Spotify.clientId()) { location.hash = '#gustos'; setTimeout(() => $('#spPanel').scrollIntoView({ behavior: 'smooth' }), 80); toast('Primero configura Spotify (una sola vez)'); return; }
+  if (!Spotify.clientId()) { location.hash = '#gustos'; setTimeout(() => { $('#spPanel').open = true; $('#spPanel').scrollIntoView({ behavior: 'smooth' }); }, 80); toast('Primero configura Spotify (una sola vez)'); return; }
   const st = '#plStatus';
   try {
     status(st, 'Buscando tus canciones en Spotify…');
@@ -506,7 +506,7 @@ $('#fileImport').onchange = async e => {
   } catch (err) { status('#importStatus', err.message || 'No pude leer ese archivo'); }
 };
 export async function pickSpotify() {
-  if (!Spotify.clientId()) { $('#spPanel').scrollIntoView({ behavior: 'smooth' }); return toast('Primero configura Spotify en «Conectar Spotify» (abajo)'); }
+  if (!Spotify.clientId()) { $('#spPanel').open = true; $('#spPanel').scrollIntoView({ behavior: 'smooth' }); return toast('Primero configura Spotify en «Conectar Spotify» (abajo)'); }
   if (!Spotify.canRead()) return Spotify.connect('#pick').catch(e => toast(e.message));
   const box = $('#spLists'); box.hidden = false; box.innerHTML = '<p class="empty">Leyendo tus playlists de Spotify…</p>';
   try {
