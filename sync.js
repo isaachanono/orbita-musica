@@ -133,9 +133,11 @@ window.Sync = (() => {
   }
 
   // Deletes the encrypted server copy, if a code is set. Local keys are the caller's job.
+  // Returns true when the remote copy is gone (or never existed); false when the DELETE failed —
+  // the caller must keep the code or warn the user instead of stranding a reachable blob.
   async function wipeRemote() {
-    if (!st.code || !available()) return;
-    try { const { id } = await keys(st.code); await fetch(url(id), { method: 'DELETE' }); } catch {}
+    if (!st.code || !available()) return true;
+    try { const { id } = await keys(st.code); return (await fetch(url(id), { method: 'DELETE' })).ok; } catch { return false; }
   }
 
   $('#exportData')?.addEventListener('click', backedUp);

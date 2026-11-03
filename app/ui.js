@@ -749,9 +749,12 @@ $('#importData').onchange = async e => {
 $('#wipe').onclick = async () => {
   if (!confirm('¿Borrar todos tus gustos, guardados, playlists y ajustes de este navegador?')) return;
   const synced = typeof Sync !== 'undefined' && store.get('descubre:sync', {}).code;
-  if (synced && confirm('Tienes sincronización activada. ¿Borrar también la copia cifrada del servidor?')) { try { await Sync.wipeRemote(); } catch {} }
+  if (synced && confirm('Tienes sincronización activada. ¿Borrar también la copia cifrada del servidor?')) {
+    const gone = await Sync.wipeRemote().catch(() => false);
+    if (!gone && !confirm('No pude borrar la copia del servidor (¿sin conexión?). ¿Borrar solo lo de este navegador?')) return;
+  }
   Object.keys(localStorage).forEach(k => { if (/^(descubre|orbita)[:.]/.test(k) || k === 'known' || k === 'saved') localStorage.removeItem(k); });
-  sessionStorage.clear();
+  sessionStorage.removeItem('sp_auth');
   location.reload();
 };
 
