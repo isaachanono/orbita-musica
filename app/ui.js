@@ -332,8 +332,9 @@ $('#useTaste').onchange = () => { db.prefs.useTaste = $('#useTaste').checked; pe
 export function renderExamples() {
   const fmt = document.querySelector('input[name=format]:checked').value;
   const list = suggestPrompts(fmt, { artists: tasteList().slice(0, 30).map(e => e.name), genres: (db.prefs.genres || []).slice(0, 12).map(x => x.g), shazam: db.sources.some(x => x.shazam) });
-  $('#examples').innerHTML = list.map(x => `<button type="button">${esc(x)}</button>`).join('');
-  $('#examples').querySelectorAll('button').forEach(b => b.onclick = () => { $('#prompt').value = b.textContent; discover(); });
+  const shazam = shazamArtists().length ? `<button type="button" class="quick" data-pl="descubrir desde mis shazams">⚡ Playlist de mis Shazams</button>` : '';
+  $('#examples').innerHTML = shazam + list.map(x => `<button type="button">${esc(x)}</button>`).join('');
+  $('#examples').querySelectorAll('button').forEach(b => b.onclick = () => b.dataset.pl ? playlistFromSeed(b.dataset.pl) : ($('#prompt').value = b.textContent, discover()));
   $('#prompt').placeholder = 'ej. ' + list[0];
 }
 $$('input[name=format]').forEach(r => r.addEventListener('change', renderExamples));
@@ -724,6 +725,13 @@ $('#classify').onclick = async () => {
   toast(`Clasifiqué ${ok} de ${top.length} artistas en ${db.prefs.genres.length} géneros`);
 };
 export function deepSearch(q) { $('#prompt').value = q; location.hash = '#descubrir'; discover(); }
+// Same as deepSearch but produces an editable playlist draft (used by the map's "Playlist desde aquí" and the Shazam shortcut).
+export function playlistFromSeed(q) {
+  $('#prompt').value = q; location.hash = '#descubrir';
+  const r = document.querySelector('input[name=format][value=playlist]');
+  if (r) { r.checked = true; renderExamples(); }
+  discover();
+}
 $('#deepTaste').onclick = () => deepSearch('canciones que no conozco de mis artistas');
 export function download(name, text, type = 'application/json') {
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);

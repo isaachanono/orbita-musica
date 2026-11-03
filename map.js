@@ -152,18 +152,19 @@ const MapView = (() => {
         <div class="facts">${genresOf(e).map(g => `<span class="chip g">${esc(g)}</span>`).join('')}${mb.country ? `<span class="chip">${flag(mb.country)} ${esc(mb.area || mb.country)}</span>` : ''}${mb.begin ? `<span class="chip">desde ${esc(mb.begin)}</span>` : ''}</div>
         <p><b>Peso en tus gustos:</b> ${Math.round(e.n)} · <b>fuentes:</b> ${e.srcs.length}${e.first ? ` · <b>agregado:</b> ${new Date(e.first).toLocaleDateString()}` : ''}</p>
         ${e.via ? `<p><b>Lo descubriste por:</b> ${esc(e.via)}</p>` : ''}${list(['rel'], 'Relacionado con')}${list(['genre'], 'Géneros')}
-        <div class="actions"><button class="btn primary" data-q="más de ${esc(e.name)}">Canciones que no conozco</button><button class="btn" data-q="artistas nuevos como ${esc(e.name)}">Artistas parecidos</button><button class="btn" data-detail>Ver canciones y álbumes</button></div>`;
+        <div class="actions"><button class="btn primary" data-q="más de ${esc(e.name)}">Canciones que no conozco</button><button class="btn" data-q="artistas nuevos como ${esc(e.name)}">Artistas parecidos</button><button class="btn" data-pl="como ${esc(e.name)}">Playlist desde aquí</button><button class="btn" data-detail>Ver canciones y álbumes</button></div>`;
     } else {
       box.innerHTML = `<button class="icon-btn x" data-x title="Cerrar">${icon('x')}</button><div class="kind">Género</div><h3>${esc(n.label)}</h3>
         <p><b>${n.members.length} de tus artistas:</b> ${n.members.slice(0, 10).map(esc).join(', ')}${n.members.length > 10 ? '…' : ''}</p>
         ${list(['en'], 'Suena parecido a (Every Noise)')}${list(['share'], 'Comparte artistas con')}
         ${(() => { const near = (EN_SIMILAR[enFind(n.label)?.g] || []).filter(h => !nodes.some(o => o.id === 'g:' + h)).slice(0, 5); return near.length ? `<p><b>Vecinos por descubrir:</b> ${near.map(h => `<a href="#descubrir" data-q="${esc(h)}">${esc(h)}</a>`).join(', ')}</p>` : ''; })()}
-        <div class="actions"><button class="btn primary" data-q="${esc(n.label)}">Explorar ${esc(n.label)}</button></div>`;
+        <div class="actions"><button class="btn primary" data-q="${esc(n.label)}">Explorar ${esc(n.label)}</button><button class="btn" data-pl="${esc(n.label)}">Playlist desde aquí</button></div>`;
     }
     box.hidden = false;
     box.querySelector('[data-x]').onclick = () => select(null);
     box.querySelectorAll('[data-go]').forEach(a => a.onclick = ev => { ev.preventDefault(); select(a.dataset.go); });
     box.querySelectorAll('[data-q]').forEach(b => b.onclick = ev => { ev.preventDefault(); if (wrap.classList.contains('full')) document.fullscreenElement ? document.exitFullscreen() : setFull(false); deepSearch(b.dataset.q); });
+    box.querySelectorAll('[data-pl]').forEach(b => b.onclick = ev => { ev.preventDefault(); if (wrap.classList.contains('full')) document.fullscreenElement ? document.exitFullscreen() : setFull(false); playlistFromSeed(b.dataset.pl); });
     const det = box.querySelector('[data-detail]');
     if (det) det.onclick = async () => { det.disabled = true; const id = await resolveArtistId(n.e).catch(() => -1); det.disabled = false; id > 0 ? openDetail({ type: 'artist', id }) : toast('No encontré a este artista en Deezer'); };
   }
