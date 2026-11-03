@@ -392,11 +392,17 @@ $('#plPlay').onclick = () => S.curPl?.tracks[0] && playTrack(S.curPl.tracks[0], 
 $('#plCopy').onclick = () => S.curPl && copyList(S.curPl.tracks, $('#plCopy'));
 $('#plExport').onclick = () => S.curPl && download(`${S.curPl.name}.txt`, S.curPl.tracks.map(t => `${t.artist} - ${t.title}`).join('\n'), 'text/plain');
 $('#plSpotify').onclick = () => S.curPl && sendToSpotify(S.curPl);
+$('#plSpotify').hidden = !$('#spPanel') && !Spotify.clientId();
 export const SP_NOT_REGISTERED = 'Tu cuenta de Spotify todavía no está habilitada en Órbita. Mientras la app esté en modo desarrollo de Spotify, solo funcionan las cuentas que el administrador agregó en User Management. Puedes importar con links o archivos sin conectar.';
 export const spError = e => e?.message === 'not-registered' ? SP_NOT_REGISTERED : e?.message || String(e);
 export async function sendToSpotify(p) {
   if (!p?.tracks.length) { toast('La playlist está vacía'); return; }
-  if (!Spotify.clientId()) { location.hash = '#gustos'; setTimeout(() => { $('#spPanel').open = true; $('#spPanel').scrollIntoView({ behavior: 'smooth' }); }, 80); toast('Primero configura Spotify (una sola vez)'); return; }
+  if (!Spotify.clientId()) {
+    const p = $('#spPanel');
+    if (p) { location.hash = '#gustos'; setTimeout(() => { p.open = true; p.scrollIntoView({ behavior: 'smooth' }); }, 80); toast('Primero configura Spotify (una sola vez)'); }
+    else toast('Spotify no está habilitado en esta versión');
+    return;
+  }
   const st = '#plStatus';
   try {
     status(st, 'Buscando tus canciones en Spotify…');
@@ -410,15 +416,18 @@ export async function sendToSpotify(p) {
   }
 }
 export function renderSpotify() {
+  if (!$('#spForm')) return; // panel de Spotify oculto en la beta pública (ver comentario en index.html)
   $('#spRedirect').textContent = Spotify.redirectUri();
   $('#spClient').value = Spotify.clientId();
   const on = Spotify.connected();
   $('#spState').textContent = !Spotify.clientId() ? 'Sin configurar' : on && !Spotify.canRead() ? 'Conectado (vuelve a conectar para leer playlists)' : on ? 'Conectado ✓' : 'Configurado, sin conectar';
   $('#spDisconnect').hidden = !on;
 }
-$('#spForm').onsubmit = e => { e.preventDefault(); Spotify.setClientId($('#spClient').value); renderSpotify(); toast($('#spClient').value.trim() ? 'Client ID guardado' : 'Client ID borrado'); };
-$('#spConnect').onclick = () => Spotify.connect('').catch(e => toast(e.message === 'no-client' ? 'Pega primero tu Client ID' : e.message));
-$('#spDisconnect').onclick = () => { Spotify.disconnect(); renderSpotify(); toast('Spotify desconectado en este navegador. Para quitar el permiso por completo: spotify.com/account/apps'); };
+if ($('#spForm')) {
+  $('#spForm').onsubmit = e => { e.preventDefault(); Spotify.setClientId($('#spClient').value); renderSpotify(); toast($('#spClient').value.trim() ? 'Client ID guardado' : 'Client ID borrado'); };
+  $('#spConnect').onclick = () => Spotify.connect('').catch(e => toast(e.message === 'no-client' ? 'Pega primero tu Client ID' : e.message));
+  $('#spDisconnect').onclick = () => { Spotify.disconnect(); renderSpotify(); toast('Spotify desconectado en este navegador. Para quitar el permiso por completo: spotify.com/account/apps'); };
+}
 $('#plDelete').onclick = () => { if (S.curPl && confirm(`¿Eliminar «${S.curPl.name}»?`)) { db.playlists = db.playlists.filter(x => x !== S.curPl); persist(); renderSide(); location.hash = '#playlists'; } };
 $('#plSuggest').onclick = async () => {
   const p = S.curPl; if (!p) return;
@@ -506,7 +515,11 @@ $('#fileImport').onchange = async e => {
   } catch (err) { status('#importStatus', err.message || 'No pude leer ese archivo'); }
 };
 export async function pickSpotify() {
-  if (!Spotify.clientId()) { $('#spPanel').open = true; $('#spPanel').scrollIntoView({ behavior: 'smooth' }); return toast('Primero configura Spotify en «Conectar Spotify» (abajo)'); }
+  if (!Spotify.clientId()) {
+    const p = $('#spPanel');
+    if (p) { p.open = true; p.scrollIntoView({ behavior: 'smooth' }); return toast('Primero configura Spotify en «Conectar Spotify» (abajo)'); }
+    return toast('Spotify no está habilitado en esta versión');
+  }
   if (!Spotify.canRead()) return Spotify.connect('#pick').catch(e => toast(e.message));
   const box = $('#spLists'); box.hidden = false; box.innerHTML = '<p class="empty">Leyendo tus playlists de Spotify…</p>';
   try {
@@ -531,6 +544,9 @@ export async function pickSpotify() {
     });
   } catch (err) { box.innerHTML = `<p class="empty">${esc(err.message === 'auth' ? 'Vuelve a conectar Spotify.' : err.message === 'not-registered' ? SP_NOT_REGISTERED : 'No pude leer tus playlists: ' + err.message)}</p>`; renderSpotify(); }
 }
+// La lectura de playlists de Spotify solo aparece si el panel de desarrollo está
+// en el HTML o ya hay un Client ID guardado (igual que «Pasar a Spotify» arriba).
+$('#spPick').hidden = !$('#spPanel') && !Spotify.clientId();
 $('#spPick').onclick = pickSpotify;
 $('#pasteBtn').onclick = () => {
   const txt = $('#pasteList').value; const tracks = parsePasted(txt);

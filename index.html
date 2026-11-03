@@ -150,27 +150,36 @@
       <div class="actions left"><button class="btn" id="shazamDiscover" type="button">Descubrir desde mis Shazams</button><button class="btn ghost" id="shazamOpen" type="button">Ver playlist Mis Shazams</button></div>
     </details>
     <div class="stats" id="stats"></div>
-    <div class="panel" id="genrePanel">
-      <h3>Tus géneros <small class="mut">(clasificados con MusicBrainz + Every Noise; toca uno para explorarlo)</small></h3>
+    <details class="panel" id="genrePanel">
+      <summary><h3>Tus géneros <small class="mut">(clasificados con MusicBrainz + Every Noise; toca uno para explorarlo)</small></h3></summary>
       <div id="genreChips" class="chips"></div>
       <div class="actions left"><button class="btn" id="classify" type="button">Clasificar mis artistas</button><span id="classifyStatus" class="mut"></span></div>
-    </div>
-    <div class="panel"><h3>Fuentes importadas</h3><div id="sources" class="rows"></div></div>
-    <div class="panel"><h3>Artistas que conoces <small class="mut">(toca uno para ver canciones suyas que no conoces)</small></h3>
+    </details>
+    <details class="panel" id="sourcesPanel">
+      <summary><h3>Fuentes importadas</h3></summary>
+      <div id="sources" class="rows"></div>
+    </details>
+    <details class="panel" id="artistsPanel">
+      <summary><h3>Artistas que conoces <small class="mut">(toca uno para ver canciones suyas que no conoces)</small></h3></summary>
       <div class="actions left"><button class="btn primary" id="deepTaste" type="button">Canciones que no conozco de mis artistas</button></div>
-      <div id="artistChips" class="chips"></div></div>
+      <div id="artistChips" class="chips"></div>
+    </details>
     <div class="panel">
       <h3>Pasar playlists a tu servicio</h3>
       <p class="hint">Para cualquier servicio: en la playlist toca “Copiar lista” y pégala en <a href="https://www.tunemymusic.com/transfer" target="_blank" rel="noopener">TuneMyMusic</a> o <a href="https://soundiiz.com/" target="_blank" rel="noopener">Soundiiz</a> (Apple Music, YouTube Music, Amazon Music, Tidal…).</p>
+      <!-- Conexión directa a Spotify: oculta para la beta pública (requiere que cada usuario
+           cree su propia app en developer.spotify.com). Para probarla en desarrollo,
+           descomenta este bloque — el JS de app/ui.js lo detecta solo:
       <details class="more" id="spPanel">
         <summary>Opciones avanzadas: conectar Spotify directo</summary>
-      <p class="hint"><b>Spotify</b> (una sola vez): entra a <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener">developer.spotify.com/dashboard</a> → Create app → en “Redirect URI” pon <code id="spRedirect"></code> → marca “Web API” → guarda y copia el <b>Client ID</b> aquí. El Client ID no es secreto. Spotify exige que la cuenta dueña de la app tenga Premium y en modo desarrollo permite hasta 5 usuarios (los agregas en “User Management”).</p>
+      <p class="hint"><b>Spotify</b> (una sola vez): entra a developer.spotify.com/dashboard → Create app → en “Redirect URI” pon el valor de Spotify.redirectUri() → marca “Web API” → guarda y copia el Client ID aquí. El Client ID no es secreto. Spotify exige que la cuenta dueña de la app tenga Premium y en modo desarrollo permite hasta 5 usuarios (se agregan en “User Management”).</p>
       <form id="spForm" class="row-form" style="margin-top:10px"><input id="spClient" placeholder="Spotify Client ID" autocomplete="off"><button class="btn">Guardar</button></form>
       <div class="actions left"><span id="spState" class="pill-state"></span><button class="btn" id="spConnect" type="button">Conectar Spotify</button><button class="btn ghost" id="spDisconnect" type="button" hidden>Desconectar</button></div>
       </details>
+      -->
     </div>
-    <div class="panel">
-      <h3>Respaldo y sincronización</h3>
+    <details class="panel">
+      <summary><h3>Respaldo y sincronización</h3></summary>
       <p class="hint" id="backupInfo">Tus datos viven solo en este navegador. Descarga un respaldo de vez en cuando para no perderlos.</p>
       <div class="actions left">
         <button class="btn" id="exportData" type="button">Descargar respaldo</button>
@@ -178,7 +187,7 @@
         <button class="btn danger" id="wipe" type="button">Borrar todo</button>
       </div>
       <div id="syncBox" class="sync-box"></div>
-    </div>
+    </details>
   </section>
 
   <!-- GUARDADOS -->
