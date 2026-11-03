@@ -172,7 +172,7 @@
            descomenta este bloque — el JS de app/ui.js lo detecta solo:
       <details class="more" id="spPanel">
         <summary>Opciones avanzadas: conectar Spotify directo</summary>
-      <p class="hint"><b>Spotify</b> (una sola vez): entra a developer.spotify.com/dashboard → Create app → en “Redirect URI” pon el valor de Spotify.redirectUri() → marca “Web API” → guarda y copia el Client ID aquí. El Client ID no es secreto. Spotify exige que la cuenta dueña de la app tenga Premium y en modo desarrollo permite hasta 5 usuarios (se agregan en “User Management”).</p>
+      <p class="hint"><b>Spotify</b> (una sola vez): entra a developer.spotify.com/dashboard → Create app → en “Redirect URI” pon <code id="spRedirect"></code> → marca “Web API” → guarda y copia el Client ID aquí. El Client ID no es secreto. Spotify exige que la cuenta dueña de la app tenga Premium y en modo desarrollo permite hasta 5 usuarios (se agregan en “User Management”).</p>
       <form id="spForm" class="row-form" style="margin-top:10px"><input id="spClient" placeholder="Spotify Client ID" autocomplete="off"><button class="btn">Guardar</button></form>
       <div class="actions left"><span id="spState" class="pill-state"></span><button class="btn" id="spConnect" type="button">Conectar Spotify</button><button class="btn ghost" id="spDisconnect" type="button" hidden>Desconectar</button></div>
       </details>

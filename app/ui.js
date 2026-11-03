@@ -284,6 +284,7 @@ export function renderDraft(tracks, prompt) {
     <div class="actions left"><button class="btn primary" id="draftSave">${icon('plus')}Guardar en mis playlists</button><button class="btn" id="draftPlay">${icon('play')}Reproducir</button><button class="btn" id="draftSpotify">Guardar y pasar a Spotify</button><button class="btn ghost" id="draftCopy">Copiar lista</button></div>
     <p class="hint">Quita o cambia canciones antes de guardarla. ${icon('known')} = ya la conozco, ${icon('swap')} = otra opción.</p></div></div><div class="tracks" id="draftRows"></div>`;
   $('#results').appendChild(box);
+  $('#draftSpotify').hidden = !$('#spPanel') && !Spotify.clientId();
   const draw = () => {
     $('#draftCount').textContent = `${tracks.length} canciones`;
     $('#draftRows').innerHTML = '';
