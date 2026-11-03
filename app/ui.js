@@ -746,7 +746,14 @@ $('#importData').onchange = async e => {
   } catch { toast('Ese archivo no es un respaldo válido'); }
   e.target.value = '';
 };
-$('#wipe').onclick = () => { if (!confirm('¿Borrar todos tus gustos, guardados y playlists de este navegador?')) return; localStorage.removeItem(DB_KEY); location.reload(); };
+$('#wipe').onclick = async () => {
+  if (!confirm('¿Borrar todos tus gustos, guardados, playlists y ajustes de este navegador?')) return;
+  const synced = typeof Sync !== 'undefined' && store.get('descubre:sync', {}).code;
+  if (synced && confirm('Tienes sincronización activada. ¿Borrar también la copia cifrada del servidor?')) { try { await Sync.wipeRemote(); } catch {} }
+  Object.keys(localStorage).forEach(k => { if (/^(descubre|orbita)[:.]/.test(k) || k === 'known' || k === 'saved') localStorage.removeItem(k); });
+  sessionStorage.clear();
+  location.reload();
+};
 
 export function refreshCounts() {
   const n = Object.keys(db.artists).length;

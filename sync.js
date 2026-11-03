@@ -132,9 +132,15 @@ window.Sync = (() => {
     if (f) f.onsubmit = e => { e.preventDefault(); link(f.code.value); };
   }
 
+  // Deletes the encrypted server copy, if a code is set. Local keys are the caller's job.
+  async function wipeRemote() {
+    if (!st.code || !available()) return;
+    try { const { id } = await keys(st.code); await fetch(url(id), { method: 'DELETE' }); } catch {}
+  }
+
   $('#exportData')?.addEventListener('click', backedUp);
   $('#backupNudge [data-backup]')?.addEventListener('click', () => $('#exportData').click());
   $('#backupNudge [data-later]')?.addEventListener('click', () => { localStorage.setItem(BK, Date.now() - 7 * DAY); nudge(); });
   start();
-  return { changed, push, status: () => ({ ...st, code: st.code ? 'set' : '' }) };
+  return { changed, push, wipeRemote, status: () => ({ ...st, code: st.code ? 'set' : '' }) };
 })();
