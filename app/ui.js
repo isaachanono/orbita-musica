@@ -553,7 +553,7 @@ export function removeSource(id) {
     const keep = new Set([...(db.manualTracks || []), ...db.sources.flatMap(s => s.keys || [])]);
     gone.keys.forEach(k => { if (!keep.has(k)) S.knownTracks.delete(k); });
   }
-  persist(); renderGustos();
+  persist(); renderGustos(); renderExamples();
 }
 export function renderGustos() {
   const arts = tasteList();
