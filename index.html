@@ -63,7 +63,7 @@
   </div>
   <div class="lcd">
     <div class="lcd-art" id="pArt"></div>
-    <div class="lcd-txt"><b id="pTitle">Elige algo para escuchar</b><span id="pArtist">Previews de 30 s</span></div>
+    <div class="lcd-txt"><b id="pTitle">¿Qué quieres descubrir hoy?</b><span id="pArtist">Previews de 30 s</span></div>
     <div class="lcd-bar"><i id="pProg"></i></div>
   </div>
   <div class="p-acts" id="pActs" hidden></div>
@@ -74,7 +74,7 @@
   <!-- DESCUBRIR -->
   <section class="view" data-view="descubrir">
     <h1 class="big">Descubrir</h1>
-    <p class="lede">Dime tu mood, la actividad, un género o un artista. Te encuentro música que <em>no</em> conoces — también canciones nuevas de artistas que ya escuchas.</p>
+    <p class="lede">Dime qué tienes ganas de escuchar: un mood, una actividad o un artista. Descubre música fuera de lo habitual, incluso de artistas que ya conoces.</p>
     <form id="form" class="prompt" autocomplete="off">
       <textarea id="prompt" rows="2" placeholder="ej. algo melancólico con groove para manejar de noche, parecido a Khruangbin"></textarea>
       <div class="examples" id="examples"></div>
@@ -86,7 +86,7 @@
           <label><input type="radio" name="format" value="album"><span>Álbumes</span></label>
           <label><input type="radio" name="format" value="playlist"><span>Playlist</span></label>
         </div>
-        <label class="novelty"><span>Qué tan nuevo</span><input type="range" id="novelty" min="0" max="100" value="70"><b id="noveltyLabel">Lejos</b></label>
+        <label class="novelty"><span>Qué tan diferente</span><input type="range" id="novelty" min="0" max="100" value="70"><b id="noveltyLabel">Lejos</b></label>
         <label class="switch" title="Usa los artistas de tus playlists importadas y tus guardados"><input type="checkbox" id="useTaste"><i></i><span>Usar mis gustos <small id="tasteCount"></small></span></label>
         <button type="submit" id="go" class="btn primary">Descubrir</button>
       </div>
@@ -109,7 +109,7 @@
   <!-- MIS GUSTOS -->
   <section class="view" data-view="gustos" hidden>
     <h1 class="big">Mis gustos</h1>
-    <p class="lede">Pega links de tus playlists para que la app sepa qué ya conoces y qué te gusta. Todo se guarda solo en este navegador.</p>
+    <p class="lede">Importa tus playlists para que Órbita conozca tus gustos y te recomiende música que todavía no has escuchado. Sin crear una cuenta.</p>
     <div class="nudge" id="backupNudge" hidden><span><b>Tus gustos solo viven en este navegador.</b> Descarga un respaldo para no perderlos si borras los datos del sitio o cambias de dispositivo.</span><button class="btn primary sm" type="button" data-backup>Descargar respaldo</button><button class="btn ghost sm" type="button" data-later>Después</button></div>
     <div class="panel" id="profPanel">
       <h3>Tu perfil de Spotify (sin conectar tu cuenta)</h3>
@@ -142,13 +142,13 @@
         <button class="btn">Agregar</button>
       </form>
     </div>
-    <div class="panel" id="shazamPanel">
-      <h3>Shazam</h3>
+    <details class="panel" id="shazamPanel">
+      <summary><h3>Shazam</h3></summary>
       <p class="hint">Shazam no tiene API pública, pero puede guardar todo lo que identificas en una playlist <b>“My Shazam Tracks”</b>. En la app de Shazam: Ajustes → <b>Conectar Spotify</b> (activa “Sync your songs to Spotify”) o <b>Apple Music</b>. Copia el link de esa playlist (en Apple Music compártela como pública) y pégalo aquí. Cuando shazamees más, toca “Actualizar”.</p>
       <form id="shazamForm" class="row-form" style="margin-top:10px"><input id="shazamUrl" type="url" placeholder="Link de tu playlist “My Shazam Tracks” (Spotify o Apple Music)"><button class="btn primary" id="shazamBtn">Importar mis Shazams</button></form>
       <div id="shazamStatus" class="status" hidden></div>
       <div class="actions left"><button class="btn" id="shazamDiscover" type="button">Descubrir desde mis Shazams</button><button class="btn ghost" id="shazamOpen" type="button">Ver playlist Mis Shazams</button></div>
-    </div>
+    </details>
     <div class="stats" id="stats"></div>
     <div class="panel" id="genrePanel">
       <h3>Tus géneros <small class="mut">(clasificados con MusicBrainz + Every Noise; toca uno para explorarlo)</small></h3>
@@ -159,12 +159,15 @@
     <div class="panel"><h3>Artistas que conoces <small class="mut">(toca uno para ver canciones suyas que no conoces)</small></h3>
       <div class="actions left"><button class="btn primary" id="deepTaste" type="button">Canciones que no conozco de mis artistas</button></div>
       <div id="artistChips" class="chips"></div></div>
-    <div class="panel" id="spPanel">
+    <div class="panel">
       <h3>Pasar playlists a tu servicio</h3>
+      <p class="hint">Para cualquier servicio: en la playlist toca “Copiar lista” y pégala en <a href="https://www.tunemymusic.com/transfer" target="_blank" rel="noopener">TuneMyMusic</a> o <a href="https://soundiiz.com/" target="_blank" rel="noopener">Soundiiz</a> (Apple Music, YouTube Music, Amazon Music, Tidal…).</p>
+      <details class="more" id="spPanel">
+        <summary>Opciones avanzadas: conectar Spotify directo</summary>
       <p class="hint"><b>Spotify</b> (una sola vez): entra a <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener">developer.spotify.com/dashboard</a> → Create app → en “Redirect URI” pon <code id="spRedirect"></code> → marca “Web API” → guarda y copia el <b>Client ID</b> aquí. El Client ID no es secreto. Spotify exige que la cuenta dueña de la app tenga Premium y en modo desarrollo permite hasta 5 usuarios (los agregas en “User Management”).</p>
       <form id="spForm" class="row-form" style="margin-top:10px"><input id="spClient" placeholder="Spotify Client ID" autocomplete="off"><button class="btn">Guardar</button></form>
       <div class="actions left"><span id="spState" class="pill-state"></span><button class="btn" id="spConnect" type="button">Conectar Spotify</button><button class="btn ghost" id="spDisconnect" type="button" hidden>Desconectar</button></div>
-      <p class="hint">Apple Music, YouTube Music, Amazon Music y Tidal: usa “Copiar lista” en la playlist y pégala en <a href="https://www.tunemymusic.com/transfer" target="_blank" rel="noopener">TuneMyMusic</a> o <a href="https://soundiiz.com/" target="_blank" rel="noopener">Soundiiz</a>.</p>
+      </details>
     </div>
     <div class="panel">
       <h3>Respaldo y sincronización</h3>
@@ -181,7 +184,7 @@
   <!-- GUARDADOS -->
   <section class="view" data-view="guardados" hidden>
     <h1 class="big">Guardados</h1>
-    <p class="lede">Lo que te gustó al descubrir.</p>
+    <p class="lede">Toda la música que descubriste y quisiste guardar.</p>
     <div class="actions left"><button class="btn primary" id="savedPlayAll" type="button">Reproducir</button><button class="btn" id="savedToPl" type="button">Crear playlist con mis guardados</button></div>
     <div id="savedList" class="tracks"></div>
   </section>
@@ -189,7 +192,7 @@
   <!-- MAPA -->
   <section class="view" data-view="mapa" hidden>
     <h1 class="big">Tu mapa musical</h1>
-    <p class="lede">Tus artistas y géneros conectados. Cada artista o género nuevo que descubres aparece como un nodo y se une con lo que ya escuchas.</p>
+    <p class="lede">Explora cómo se conectan tus artistas, géneros y descubrimientos. Un mapa de tu universo musical que crece contigo.</p>
     <div class="map-wrap" id="mapWrap">
       <div class="map-stage">
         <svg id="mapSvg" aria-label="Mapa musical"></svg>
