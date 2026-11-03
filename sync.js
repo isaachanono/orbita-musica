@@ -136,7 +136,8 @@ window.Sync = (() => {
   // Returns true when the remote copy is gone (or never existed); false when the DELETE failed —
   // the caller must keep the code or warn the user instead of stranding a reachable blob.
   async function wipeRemote() {
-    if (!st.code || !available()) return true;
+    if (!st.code) return true;
+    if (!available()) return false; // gateway unreachable: can't confirm the remote copy is gone
     try { const { id } = await keys(st.code); return (await fetch(url(id), { method: 'DELETE' })).ok; } catch { return false; }
   }
 
